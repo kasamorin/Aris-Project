@@ -170,7 +170,7 @@ fi
 echo
 if [ "$fail" -eq 0 ]; then
     echo "结果：PASS（可进入版本发布流程）"
-    echo "  1. 在 release/v<版本> 分支上核对版本号（推荐：bash scripts/release.sh，未 bump 时用 bump-version.sh）"
+    echo "  1. 发版准备：bash scripts/release.sh <版本|patch|minor|major>（从 develop 切 release 分支并 bump）"
     echo "  2. 封 CHANGELOG.md 的版本段，提交 chore(release): ..."
     echo "  3. 推送 release 分支到 fork（origin），向上游开 PR：release/v<版本> → main"
     echo "  4. 合并后在上游 main 打 tag 并推送：alpha-v$ver（只在 develop）/ beta-v$ver / v$ver"
