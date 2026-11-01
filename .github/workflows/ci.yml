@@ -1,0 +1,51 @@
+# PR 必跑的 CI（v0.4.5 W2）。
+# 与本地 scripts/check.sh 对齐：ruff check / format --check / mypy / pytest。
+# 不做：打包、发布、GitHub Release；依赖真库（PG / embedding 模型）的用例继续自动 skip。
+name: CI
+
+on:
+  pull_request:
+    branches: [develop, main]
+  push:
+    branches: [develop, main]
+
+# 同一分支的新提交取消上一轮，省额度
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  check:
+    name: lint + type + test
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - name: 检出代码
+        uses: actions/checkout@v5
+
+      - name: 安装 uv（含依赖缓存）
+        uses: astral-sh/setup-uv@68559e99cc807c1eb7e9238fd43a15bba460eec2 # v10.3.3
+        with:
+          # 与 requires-python 下限一致；python-version 会设置 UV_PYTHON
+          python-version: "3.12"
+          enable-cache: true
+          cache-dependency-glob: "uv.lock"
+
+      # 默认组含 embedding（torch / openvino / transformers），装得慢但与本机一致
+      - name: 同步依赖
+        run: uv sync --frozen
+
+      - name: ruff check
+        run: uv run ruff check .
+
+      - name: ruff format --check
+        run: uv run ruff format --check .
+
+      - name: mypy（core + store）
+        run: uv run mypy src/aris/core src/aris/store
+
+      - name: pytest
+        run: uv run pytest -q
