@@ -7,8 +7,8 @@
 ## 1. 权威与规则
 
 - **最终权威归开发者**
-- 冲突时的取用顺序：**AGENTS.md > `docs/forAiDoc/` 各专文档 > `PROGRESS.md` / `todolist.md`
-  > `docs/archive/`**。都不合，停下来问开发者，不要自己拍板。
+- 冲突时的取用顺序：**AGENTS.md > `docs/forAiDoc/` 各专文档 > `PROGRESS.md` / `todolist.md`**。
+  都不合，停下来问开发者，不要自己拍板。
 - **待办唯一真相源是仓库根 `todolist.md`**：要做的事只写在那里，按阶段推进；
   旧的 `BACKLOG.md` 已作废、不再维护。**事实优先于文档**——能用 CLI / 代码常量表达的事实，
   不再单独写进文档。
@@ -65,6 +65,7 @@
 | `uv run aris store info\|embed` | embedding 自检 / 试算 |
 | `uv run pytest [-q] [tests/test_x.py]` | 测试 |
 | `bash scripts/check.sh` | 本地全检：ruff check / format + mypy + pytest（提交前跑） |
+| `bash scripts/release.sh <版本\|patch>` | 发版准备：切 `release/` 分支并 bump（只改文件，不推送） |
 
 **CLI 功能必须 ≥ WebUI**：WebUI 有的能力，CLI 必须先有（只能多不能少）；新增 WebUI 功能前先补对应命令。
 原因见 §6「前后端边界」：CLI 属于后端，前端只是壳。
@@ -107,16 +108,15 @@ Aris 是一个**基于大语言模型、类似 Neuro-sama 的赛博生命体**�
 | `data/` | 运行时数据：`config/`（含密钥）`pgdata/` `state/` `knowledge/` `characters/` `skills/` `autorun/` `logs/` `models/` `pg/` `bin/`（不进 git） |
 | `docs/forAiDoc/` | 设计与契约文档（为什么这么设计、接口是什么） |
 | `docs/dev-flow.md` | 人类开发流程（分支 → 提交 → 合并 → 发版） |
-| `docs/archive/` | 历史存档（已作废的规则与方案），只读 |
 | `tests/` | pytest 用例与测试支持（`tests/support/` 提供 mock LLM / HTTP） |
-| `scripts/` | 本地检修与发版脚本（`check.sh` / `release-check.sh` / `bump-version.sh` / `install-git-hooks.sh`） |
+| `scripts/` | 本地检修与发版脚本（`check.sh` / `release-check.sh` / `release.sh` / `bump-version.sh` / `install-git-hooks.sh`） |
 | `changelogs/` | 历史版本变更记录归档（最新版本在根 `CHANGELOG.md`） |
 | `CHANGELOG.md` | 最新版本与未发布改动（`[Unreleased]` 置顶） |
 
 ## 5. 编码规范
 
 - **语言**：变量 / 函数 / 类名一律英文；注释与 docstring 一律中文。
-- **Python**：最低 3.12，开发按 3.14，尽量用新特性；包名 `aris`，src 布局，依赖用 uv 管理。
+- **Python**：最低 3.14（`requires-python = ">=3.14"`，CI 同版本），尽量用新特性；包名 `aris`，src 布局，依赖用 uv 管理。
 - **类型标注**尽量全，公开函数 / 类必须完整。
 - **行宽**：**代码**限 100 列；**文档不限宽**。
 - **格式与静态检查**：`ruff format` + `ruff check`（行宽 100，规则见 `pyproject.toml`）；
@@ -260,7 +260,8 @@ Aris 是一个**基于大语言模型、类似 Neuro-sama 的赛博生命体**�
 - **`develop` 是日常汇聚分支**：所有开发先开 feature 分支（`feat/` `fix/` `docs/` `refactor/` 前缀，
   从最新 develop 拉出），分支内小步提交，验证后 `git merge --no-ff` 合并回 develop，
   随后删除本地与远程 feature 分支（远程操作由开发者执行）。日常开发不直接碰 main。
-- **`main` 只进发布**：beta 版与正式版发布时从 develop 合并回 main（`--no-ff`）并打 tag。
+- **`main` 只进发布**：beta / 正式版从 `release/vX.Y.Z` 向上游 `main` 开 PR（`--no-ff` 合并）并打 tag，
+  合并后 `main` 再回合并 `develop`（细节见 `docs/dev-flow.md` §6）。
 - `oldWish` 已迁出主仓库（独立仓库在 `data/temp/oldWish`，带完整历史）；主仓库不再保留该分支。
 - **提交信息**：`<type>(<scope>): 简短中文描述`，type 取
   `feat|fix|docs|refactor|chore|test|build|ci|perf|style|revert`。
@@ -307,8 +308,9 @@ Aris 是一个**基于大语言模型、类似 Neuro-sama 的赛博生命体**�
   **CD 必须在 v1.0 期间完成**，之后所有版本走同一套标准化流程，不再对流程做大变动。
 - **大版本代号**：**v1 整个生命周期 = 「跨越」（Cross）**，v1.0.0 是这条线的首个版本（v1.x 同属「跨越」）。
   代号只写在本节与发版说明里，不散落到文档各处。
-- 改版本用 `bash scripts/bump-version.sh <版本|patch|minor|major>`：校验干净 develop、
-  号码未被占用、版本递增，改源 + `uv lock` + `uv sync`，**只改文件不提交**。
+- 改版本用 `bash scripts/bump-version.sh <版本|patch|minor|major>`（发版推荐 `bash scripts/release.sh`，
+  它会切 `release/` 分支再 bump）：校验干净工作区（`develop` 或 `release/*`）、
+  号码未被占用、版本递增，改源 + `uv lock` + `uv sync`，**只改文件不提交、不推送**。
 - **变更记录**：最新版本与未发布改动写在根 `CHANGELOG.md`（`[Unreleased]` 置顶，格式见该文件开头）；
   更早版本归档到 `changelogs/<版本>.md`。tag / release 描述取自 `CHANGELOG.md` 的对应版本段，
   **没有变更记录不得发版**（`release-check.sh` 会检查对应版本段存在）。
@@ -336,7 +338,6 @@ Aris 是一个**基于大语言模型、类似 Neuro-sama 的赛博生命体**�
 | 待办与阶段计划（唯一真相源） | `todolist.md` |
 | 当前阶段施工文档（过程性） | `docs/process/`（阶段结束后移入 `docs/archive/`） |
 | 项目蓝图 | `docs/forAiDoc/Aris-Project.md` |
-| 旧事 / 已作废的方案 | `docs/archive/`（本机保留、不随仓库分发；新克隆读不到） |
 | embedding（`store/` 侧） | `docs/forAiDoc/EMBEDDING.md` |
 | TUI 已知问题 | `docs/forAiDoc/TUI-问题修复.md` |
 
@@ -377,7 +378,7 @@ Aris 是一个**基于大语言模型、类似 Neuro-sama 的赛博生命体**�
 
 ## 11. 已知陷阱
 
-一句话一条，只写结论；来龙去脉在 `docs/archive/`。
+一句话一条，只写结论；来龙去脉见提交说明与 PR。
 
 ### 数据库 / 迁移
 

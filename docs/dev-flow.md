@@ -24,9 +24,9 @@ git switch -c feat/add-knowledge-pdf
 
 标准：
 
-- Python 3.12+；变量 / 函数 / 类名英文，注释与 docstring 中文；行宽不超过 100。
+- Python 3.14+；变量 / 函数 / 类名英文，注释与 docstring 中文；行宽不超过 100。
 - 公开函数 / 类写全类型标注；新代码尽量带类型。
-- 运行时数据只进 `data/`，密钥只进 `data/config/secrets.toml`（迁移完成前为 `.env`），两者都不入 git。
+- 运行时数据只进 `data/`，密钥只进 `data/config/secrets.toml`，两者都不入 git。
 
 ## 3. 本地验证
 
@@ -93,23 +93,35 @@ git push origin --delete feat/add-knowledge-pdf
 
 ## 6. 发版
 
+一个版本从决定发版到发布完成，**只开一次 PR**（`release/vX.Y.Z → main`）：
+
 ```bash
-bash scripts/bump-version.sh 0.4.4      # 或 patch / minor / major；只改文件不提交
-git add -A && git commit -m "chore(release): 版本号 bump 至 0.4.4"
+bash scripts/release.sh patch           # 校验 → 切 release/v0.4.5 → bump（0.4.5）
+# 手工封 CHANGELOG.md 的版本段（脚本不代写文案）
 bash scripts/release-check.sh           # 必须 PASS
-git switch main
-git merge --no-ff develop
-git tag beta-v0.4.4                     # 或 v0.4.4；alpha 只在 develop 发 alpha-vX.Y.Z
-git push origin main --tags
+git add -A && git commit -m "chore(release): v0.4.5"
+git push origin release/v0.4.5
 ```
+
+随后：
+
+1. 上游开 PR：`release/v0.4.5 → main`；
+2. 合并后在上游 `main` 打 tag 并推送（`v0.4.5` / `beta-v0.4.5`）；
+3. 再开 PR：`main → develop`，`--no-ff` 合并；
+4. 删除 release 分支（本地与远端）；
+5. **不创建 GitHub Release**（等 GUI 打包后补）。
 
 标准：
 
-- 渠道：beta（小版本，发 `main`）、正式版（发 `main`）、alpha（只发 `develop`）。
+- 渠道：alpha 只在 `develop` 发 `alpha-vX.Y.Z`（不合并 `main`）；beta / 正式版发在 `main`，
+  tag 分别为 `beta-vX.Y.Z` / `vX.Y.Z`。
 - 号码全线唯一：同一个 `X.Y.Z` 只能出现一次；beta 与正式共用数字线，另一个渠道要用更高的号。
 - 单次 patch 装不下的小功能可下探一段：`vX.Y.Z.W`（beta 线写 `beta-vX.Y.Z.W`）。
-- 发版后同步 `PROGRESS.md` 的版本状态，并把 `changelogs/unreleased.md` 的内容
-  移到 `changelogs/<版本>.md`（面向使用者，格式见 `changelogs/README.md`）。
+- `release.sh` 只做本地准备：校验、切分支、bump、跑 `release-check.sh`、打印后续命令；
+  **不推送、不打 tag、不合并 `main`**。
+- 变更记录：根 `CHANGELOG.md` 只留 `[Unreleased]` 与**当前最新版本**；发版时把上一版本整段
+  移入 `changelogs/<版本>.md`（格式见 `changelogs/README.md`）。
+- 发版后同步 `PROGRESS.md` 的版本状态，勾掉 `todolist.md` 的对应条目。
 
 ## 7. 热修
 
