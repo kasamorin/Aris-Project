@@ -111,7 +111,7 @@
 
 ### A. 提交记录（head / body / footer）
 - [x] 规则写清：AGENTS.md §8、docs/dev-flow.md §4（footer：Refs / Closes / BREAKING CHANGE / Co-authored-by）
-- [ ] commit-msg hook 增加 footer token 白名单校验（仅在有 footer 时校验，避免误伤）
+- [x] commit-msg hook 增加 footer token 白名单校验（仅在有 footer 时校验，避免误伤）
 - [ ] 新提交一律带 footer（有可关联 issue/PR 时）；合并时保留分支内多条 commit
 
 ### B. 文档
@@ -137,3 +137,13 @@
 ### E. i18n（v1 期间）
 - [ ] 用户可见文案集中到常量 / 资源（先做后端，不引框架）
 - [ ] 至少支持中 / 英；后续再评估其它语言
+
+### v0.4.5 标准化施工进度（2026-11-01 记录）
+
+- W1 变更记录迁移：根 `CHANGELOG.md`（`[Unreleased]` + 最新版本）+ `changelogs/` 只放旧版本；`release-check.sh` 按新规则校验。
+- W2 CI：`.github/workflows/ci.yml`，PR 与 develop / main 推送跑 ruff / mypy / pytest（不跑 PG / embedding 集成）。
+- W3 发版：新增 `scripts/release.sh`（只做本地准备，不推送）；`bump-version.sh` 与 `release-check.sh` 放行 `release/*`；
+  流程定为「release 分支 → 上游单一 PR → 上游 tag → main 回 develop」。
+- W4 文档与合规：`docs/dev-flow.md` 发版节重写；README 变更记录与许可证段；新增 `NOTICE`（第三方许可 + 设计来源）；
+  §5.1 清理指向 `docs/archive` 的指针。
+- 本版不做：`session_cooldown_days`（代码里尚无消费方，留到 v1 会话落地）、GitHub Release、打包、文档站、i18n。

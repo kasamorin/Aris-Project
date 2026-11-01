@@ -64,12 +64,16 @@ aris web                      # 仅启动 WebUI
 
 ## 文档与参与
 
-- 变更记录：[`changelogs/`](changelogs/)（每个版本一条，面向使用者）
+- 变更记录：[`CHANGELOG.md`](CHANGELOG.md)（最新版本与未发布改动；历史版本在 [`changelogs/`](changelogs/)）
 - 开发流程与提交规范：[`docs/dev-flow.md`](docs/dev-flow.md)
 
 ## 许可证
 
 本项目以 **AGPL-3.0-or-later** 发布，全文见 [`COPYING`](COPYING)。
+
+Copyright (C) 2026 kasamorin
+
+第三方依赖（含前端静态资源）与设计参考项目的许可信息见 [`NOTICE`](NOTICE)。
 
 ## 参考项目
 

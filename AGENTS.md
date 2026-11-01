@@ -65,6 +65,7 @@
 | `uv run aris store info\|embed` | embedding 自检 / 试算 |
 | `uv run pytest [-q] [tests/test_x.py]` | 测试 |
 | `bash scripts/check.sh` | 本地全检：ruff check / format + mypy + pytest（提交前跑） |
+| `bash scripts/release.sh <版本\|patch>` | 发版准备：切 `release/` 分支并 bump（只改文件，不推送） |
 
 **CLI 功能必须 ≥ WebUI**：WebUI 有的能力，CLI 必须先有（只能多不能少）；新增 WebUI 功能前先补对应命令。
 原因见 §6「前后端边界」：CLI 属于后端，前端只是壳。
