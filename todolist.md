@@ -4,7 +4,7 @@
 
 - [] Bug fix
 - [] WebUI重整，分为Dashboard与WebChat
-- [] 宣布项目公开
+- [x] 宣布项目公开
 - [] 基于MyGO框架的GUI
 - [] 对于发行版进行软件包打包（GUI）之后
 - [] .desktop文件（同样在GUI之后）
