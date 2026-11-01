@@ -43,9 +43,9 @@ dependencies = [
 aris = "aris.cli:main"
 
 [project.urls]
-Homepage = "https://github.com/kasamorin/Project-Aris"
-Repository = "https://github.com/kasamorin/Project-Aris"
-Issues = "https://github.com/kasamorin/Project-Aris/issues"
+Homepage = "https://github.com/aris-project-ai/Aris-Project"
+Repository = "https://github.com/aris-project-ai/Aris-Project"
+Issues = "https://github.com/aris-project-ai/Aris-Project/issues"
 
 [tool.uv.sources]
 # torch / torchvision 在 Linux 默认拉 CUDA wheel（本机无 NVIDIA GPU，纯浪费体积），

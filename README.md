@@ -9,6 +9,7 @@
 
 ## 简介
 在 2026-07 我看了Neuro-sama后，萌生了自建的想法，恰逢 Agentic 爆发，于是，在 AI （Opencode伟大，无需多言）的辅助下，本项目诞生了
+只不过不巧的是Deepseek Harness与dsh插件的爆发,本项目显得有些迟滞
 
 ## 快速开始
 
@@ -61,8 +62,6 @@ aris web                      # 仅启动 WebUI
 
 只需把 `data/` 整个拷到新位置（配置、密钥、数据库、模型都在里面）；新机 `git clone` 后覆盖 `data/` 再 `uv run aris serve` 即可。
 
-> 本项目的代码均由 AI 生成
-
 ## 文档与参与
 
 - 变更记录：[`changelogs/`](changelogs/)（每个版本一条，面向使用者）
@@ -74,6 +73,9 @@ aris web                      # 仅启动 WebUI
 
 ## 参考项目
 
+设计思路上重点参考过（不涉及代码复用）：
+
 - [AstrBot](https://github.com/AstrBotDevs/AstrBot)
+- [AIRI](https://github.com/moeru-ai/airi)
 - [deepseek-harness](https://github.com/deepseek-ai/deepseek-harness)
 - [opencode](https://github.com/anomalyco/opencode)
