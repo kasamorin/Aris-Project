@@ -43,7 +43,7 @@ def _iter_offenders(root: Path = _SRC) -> list[str]:
         try:
             text = path.read_text(encoding="utf-8")
             tree = ast.parse(text)
-        except (OSError, UnicodeError, SyntaxError):
+        except OSError, UnicodeError, SyntaxError:
             continue
         docs = _docstring_ids(tree)
         for node in ast.walk(tree):

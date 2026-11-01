@@ -24,7 +24,7 @@ git switch -c feat/add-knowledge-pdf
 
 标准：
 
-- Python 3.12+；变量 / 函数 / 类名英文，注释与 docstring 中文；行宽不超过 100。
+- Python 3.14+；变量 / 函数 / 类名英文，注释与 docstring 中文；行宽不超过 100。
 - 公开函数 / 类写全类型标注；新代码尽量带类型。
 - 运行时数据只进 `data/`，密钥只进 `data/config/secrets.toml`，两者都不入 git。
 
