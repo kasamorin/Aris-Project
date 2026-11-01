@@ -18,7 +18,7 @@ classifiers = [
     "Programming Language :: Python :: 3.14",
     "Topic :: Scientific/Engineering :: Artificial Intelligence",
 ]
-# TODO(3.15): 等 OpenVINO 提供 cp315 wheel 后再升，见 docs/forAiDoc/BACKLOG.md #11
+# TODO(3.15): 等 OpenVINO 提供 cp315 wheel 后再升
 requires-python = ">=3.12"
 dependencies = [
     "pydantic-settings>=2.0",
