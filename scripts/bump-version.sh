@@ -107,9 +107,15 @@ echo "  2. 封 CHANGELOG.md 的 '## [$base] - YYYY-MM-DD' 段（面向使用者�
 echo "  3. bash scripts/release-check.sh   # 必须 PASS"
 if [ "$branch" = "develop" ]; then
     echo "  4. alpha（只在 develop）：git tag alpha-v$base 后推送，不合并 main"
-    echo "     beta / 正式：先切 release/v$base 再走发版 PR（见 docs/dev-flow.md §6）"
+    echo "     beta / 正式：用 scripts/release.sh（--beta 走 beta 渠道）切分支后走发版 PR"
+    echo "     见 docs/dev-flow.md §6"
 else
+    case "$branch" in
+    release/beta-*) tag_hint="beta-v$base" ;;
+    *) tag_hint="v$base" ;;
+    esac
     echo "  4. 推送 $branch 到 fork，向上游开 PR：$branch → main"
-    echo "  5. 合并后在上游 main 打 tag 并推送：beta-v$base / v$base（二选一，号码共用）"
-    echo "  6. 再开 PR：main → develop（--no-ff 合并），随后删除 $branch"
+    echo "  5. 在 PR 上开启原生自动合并：gh pr merge --auto --merge"
+    echo "  6. 合并后在上游 main 打 tag 并推送：$tag_hint（号码共用）"
+    echo "  7. 再开 PR：main → develop（--no-ff 合并），随后删除 $branch"
 fi

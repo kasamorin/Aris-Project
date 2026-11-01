@@ -170,12 +170,19 @@ fi
 echo
 if [ "$fail" -eq 0 ]; then
     echo "结果：PASS（可进入版本发布流程）"
-    echo "  1. 发版准备：bash scripts/release.sh <版本|patch|minor|major>（从 develop 切 release 分支并 bump）"
+    echo "  1. 发版准备：bash scripts/release.sh [--beta] <版本|patch|minor|major>（从 develop 切 release 分支并 bump）"
     echo "  2. 封 CHANGELOG.md 的版本段，提交 chore(release): ..."
-    echo "  3. 推送 release 分支到 fork（origin），向上游开 PR：release/v<版本> → main"
-    echo "  4. 合并后在上游 main 打 tag 并推送：alpha-v$ver（只在 develop）/ beta-v$ver / v$ver"
-    echo "  5. 再开 PR：main → develop（--no-ff 合并），随后删除 release 分支"
-    echo "  6. 不创建 GitHub Release（等 GUI 打包后补）"
+    echo "  3. 推送 ${cur} 到 fork（origin），向上游开 PR：${cur} → main"
+    echo "  4. 在 PR 上开启原生自动合并：gh pr merge --auto --merge"
+    echo "     （需上游已开 Allow auto-merge，且 main 的必需检查含 check + integration）"
+    case "$cur" in
+    release/beta-*) tag_hint="beta-v$ver" ;;
+    release/*) tag_hint="v$ver" ;;
+    *) tag_hint="alpha-v$ver（develop 专用，不进 main）" ;;
+    esac
+    echo "  5. 合并后在上游 main 打 tag 并推送：$tag_hint"
+    echo "  6. 再开 PR：main → develop（--no-ff 合并），随后删除 release 分支"
+    echo "  7. 不创建 GitHub Release（等 GUI 打包后补）"
     exit 0
 fi
 
