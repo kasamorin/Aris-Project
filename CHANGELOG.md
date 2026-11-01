@@ -8,7 +8,16 @@
 
 ### 新增
 
+- 仓库 CI：PR 与 `develop` / `main` 推送自动跑 ruff / mypy / 单测；发版 PR 额外起真 PostgreSQL
+  与 embedding 跑全量测试；alpha tag 跑轻量启动自检。
+- `NOTICE`：第三方依赖许可与设计参考项目（AstrBot、AIRI 等）。
+- `scripts/release.sh`：一条命令完成发版准备（校验、切分支、bump、检查），不推送、不打 tag。
+
 ### 改进
+
+- 变更记录改为根 `CHANGELOG.md` 只留最新版本，旧版本归档到 `changelogs/`。
+- README 重整：快速开始、数据与备份、参与方式更清楚，补版本与 Python 徽章。
+- 发版流程定稿：`release/` 分支单一 PR → 原生 auto-merge → tag → `main` 回合并 `develop`。
 
 ### 修复
 

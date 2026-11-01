@@ -131,7 +131,8 @@
 - [x] oldWish 迁出主仓库：独立仓库在 `data/temp/oldWish`（带历史），主仓库与 fork 已删除该分支
 
 ### D. CI/CD（v1 期间）
-- [ ] 打包（wheel + 可选 GUI）后加 CI：lint / test / build / release 产物
+- [x] CI：PR 与 develop / main 推送跑 ruff / mypy / pytest；发版 PR 加真库 + embedding；alpha tag 跑 smoke（v0.4.5）
+- [ ] 打包（wheel + 可选 GUI）后加构建 / release 产物步骤
 - [ ] CD：tag 触发构建与发布（等发行包形态稳定）
 
 ### E. i18n（v1 期间）
@@ -141,9 +142,13 @@
 ### v0.4.5 标准化施工进度（2026-11-01 记录）
 
 - W1 变更记录迁移：根 `CHANGELOG.md`（`[Unreleased]` + 最新版本）+ `changelogs/` 只放旧版本；`release-check.sh` 按新规则校验。
-- W2 CI：`.github/workflows/ci.yml`，PR 与 develop / main 推送跑 ruff / mypy / pytest（不跑 PG / embedding 集成）。
-- W3 发版：新增 `scripts/release.sh`（只做本地准备，不推送）；`bump-version.sh` 与 `release-check.sh` 放行 `release/*`；
-  流程定为「release 分支 → 上游单一 PR → 上游 tag → main 回 develop」。
+- W2 CI：`.github/workflows/ci.yml` 按渠道分档——`check`（所有 PR / develop / main 推送跑 ruff / mypy / pytest）、
+  `integration`（发版 PR 到 main：真 PG + embedding + 全量测试 + 冷启动）、`smoke`（alpha tag：CLI + dry-run）。
+- W3 发版：新增 `scripts/release.sh`（只做本地准备，不推送；`--beta` 切 `release/beta-vX.Y.Z`）；
+  `bump-version.sh` 与 `release-check.sh` 放行 `release/*`；
+  流程定为「release 分支 → 上游单一 PR → 原生 auto-merge → 上游 tag → main 回 develop」。
+- W2 配套：`.github/rulesets/` 参考定义（main 要 `check` + `integration`，develop 要 `check`）；
+  需开发者在**上游**开启 Allow auto-merge 并导入 ruleset。
 - W4 文档与合规：`docs/dev-flow.md` 发版节重写；README 变更记录与许可证段；新增 `NOTICE`（第三方许可 + 设计来源）；
   §5.1 清理指向 `docs/archive` 的指针。
 - 本版不做：`session_cooldown_days`（代码里尚无消费方，留到 v1 会话落地）、GitHub Release、打包、文档站、i18n。
