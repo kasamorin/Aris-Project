@@ -260,7 +260,8 @@ Aris 是一个**基于大语言模型、类似 Neuro-sama 的赛博生命体**�
 - **`develop` 是日常汇聚分支**：所有开发先开 feature 分支（`feat/` `fix/` `docs/` `refactor/` 前缀，
   从最新 develop 拉出），分支内小步提交，验证后 `git merge --no-ff` 合并回 develop，
   随后删除本地与远程 feature 分支（远程操作由开发者执行）。日常开发不直接碰 main。
-- **`main` 只进发布**：beta 版与正式版发布时从 develop 合并回 main（`--no-ff`）并打 tag。
+- **`main` 只进发布**：beta / 正式版从 `release/vX.Y.Z` 向上游 `main` 开 PR（`--no-ff` 合并）并打 tag，
+  合并后 `main` 再回合并 `develop`（细节见 `docs/dev-flow.md` §6）。
 - `oldWish` 已迁出主仓库（独立仓库在 `data/temp/oldWish`，带完整历史）；主仓库不再保留该分支。
 - **提交信息**：`<type>(<scope>): 简短中文描述`，type 取
   `feat|fix|docs|refactor|chore|test|build|ci|perf|style|revert`。
@@ -307,8 +308,9 @@ Aris 是一个**基于大语言模型、类似 Neuro-sama 的赛博生命体**�
   **CD 必须在 v1.0 期间完成**，之后所有版本走同一套标准化流程，不再对流程做大变动。
 - **大版本代号**：**v1 整个生命周期 = 「跨越」（Cross）**，v1.0.0 是这条线的首个版本（v1.x 同属「跨越」）。
   代号只写在本节与发版说明里，不散落到文档各处。
-- 改版本用 `bash scripts/bump-version.sh <版本|patch|minor|major>`：校验干净 develop、
-  号码未被占用、版本递增，改源 + `uv lock` + `uv sync`，**只改文件不提交**。
+- 改版本用 `bash scripts/bump-version.sh <版本|patch|minor|major>`（发版推荐 `bash scripts/release.sh`，
+  它会切 `release/` 分支再 bump）：校验干净工作区（`develop` 或 `release/*`）、
+  号码未被占用、版本递增，改源 + `uv lock` + `uv sync`，**只改文件不提交、不推送**。
 - **变更记录**：最新版本与未发布改动写在根 `CHANGELOG.md`（`[Unreleased]` 置顶，格式见该文件开头）；
   更早版本归档到 `changelogs/<版本>.md`。tag / release 描述取自 `CHANGELOG.md` 的对应版本段，
   **没有变更记录不得发版**（`release-check.sh` 会检查对应版本段存在）。
