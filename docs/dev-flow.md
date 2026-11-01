@@ -116,6 +116,8 @@ git push origin release/v0.4.5
 
 标准：
 
+- 远端约定：`origin` = 日常 fork（`kasamorin/Aris-Project`），`upstream` = 上游
+  （`aris-project-ai/Aris-Project`）；代码只推 `origin`，PR 开在 `upstream`。
 - 渠道与分支：alpha 不走 release 分支，直接在 `develop` 打 `alpha-vX.Y.Z`；beta 用
   `release/beta-vX.Y.Z`；正式版用 `release/vX.Y.Z`。tag 与分支一一对应，号码全线唯一。
 - CI 分档（`.github/workflows/ci.yml`）：
