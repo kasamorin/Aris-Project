@@ -137,13 +137,14 @@ jobs:
       - name: 同步依赖（轻量）
         run: uv sync --frozen --no-default-groups
 
+      # --no-sync：否则 uv run 会隐式补装默认组（含 torch），把「轻量」抵消掉
       - name: CLI 事实入口
         run: |
-          uv run aris --version
-          uv run aris info
+          uv run --no-sync aris --version
+          uv run --no-sync aris info
 
       # 不连数据库：跳过 store.db 与 knowledge，其余探针必须全过
       - name: 冷启动自检（不连数据库）
         env:
           DEEPSEEK_API_KEY: ci-dummy-key
-        run: uv run aris serve --dry-run --skip store.db,knowledge
+        run: uv run --no-sync aris serve --dry-run --skip store.db,knowledge
