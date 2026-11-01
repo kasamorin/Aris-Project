@@ -65,7 +65,7 @@
 | `uv run aris store info\|embed` | embedding 自检 / 试算 |
 | `uv run pytest [-q] [tests/test_x.py]` | 测试 |
 | `bash scripts/check.sh` | 本地全检：ruff check / format + mypy + pytest（提交前跑） |
-| `bash scripts/release.sh <版本\|patch>` | 发版准备：切 `release/` 分支并 bump（只改文件，不推送） |
+| `bash scripts/release.sh [--beta] <版本\|patch>` | 发版准备：切 `release/` 分支并 bump（只改文件，不推送） |
 
 **CLI 功能必须 ≥ WebUI**：WebUI 有的能力，CLI 必须先有（只能多不能少）；新增 WebUI 功能前先补对应命令。
 原因见 §6「前后端边界」：CLI 属于后端，前端只是壳。
@@ -260,8 +260,9 @@ Aris 是一个**基于大语言模型、类似 Neuro-sama 的赛博生命体**�
 - **`develop` 是日常汇聚分支**：所有开发先开 feature 分支（`feat/` `fix/` `docs/` `refactor/` 前缀，
   从最新 develop 拉出），分支内小步提交，验证后 `git merge --no-ff` 合并回 develop，
   随后删除本地与远程 feature 分支（远程操作由开发者执行）。日常开发不直接碰 main。
-- **`main` 只进发布**：beta / 正式版从 `release/vX.Y.Z` 向上游 `main` 开 PR（`--no-ff` 合并）并打 tag，
-  合并后 `main` 再回合并 `develop`（细节见 `docs/dev-flow.md` §6）。
+- **`main` 只进发布**：正式版从 `release/vX.Y.Z`、beta 从 `release/beta-vX.Y.Z` 向上游 `main`
+  开 PR（`--no-ff` 合并）并打 tag，合并后 `main` 再回合并 `develop`；发版 PR 用原生 auto-merge
+  （检查全绿自动合并），细节见 `docs/dev-flow.md` §6。
 - `oldWish` 已迁出主仓库（独立仓库在 `data/temp/oldWish`，带完整历史）；主仓库不再保留该分支。
 - **提交信息**：`<type>(<scope>): 简短中文描述`，type 取
   `feat|fix|docs|refactor|chore|test|build|ci|perf|style|revert`。
@@ -290,12 +291,14 @@ Aris 是一个**基于大语言模型、类似 Neuro-sama 的赛博生命体**�
 - **版本串只写数字**：`X.Y.Z` 或 `X.Y.Z.W`，不带 `.dev0` / `-beta` 等后缀；渠道只由 tag 表达。
 - 当前三类渠道：beta / 正式版发布在 main，**alpha 只在 develop**：
 
-| 渠道 | tag | `__version__` | 分支 |
+| 渠道 | tag | `__version__` | 发版分支 → 发布位置 |
 |---|---|---|---|
-| beta（候选版，正式前验证） | `beta-vX.Y.Z` | `X.Y.Z` | main |
-| 正式版 | `vX.Y.Z` | `X.Y.Z` | main |
-| alpha（开发通道，长期存在） | `alpha-vX.Y.Z` | `X.Y.Z` | develop |
+| beta（候选版，正式前验证） | `beta-vX.Y.Z` | `X.Y.Z` | `release/beta-vX.Y.Z` → main |
+| 正式版 | `vX.Y.Z` | `X.Y.Z` | `release/vX.Y.Z` → main |
+| alpha（开发通道，长期存在） | `alpha-vX.Y.Z` | `X.Y.Z` | 直接在 develop 打 tag |
 
+- **渠道在 PR 阶段由分支名表达**（`release/beta-` 前缀 = beta，其余 `release/` = 正式版），
+  CI 据此选测试档位（`check` / `integration` / `smoke`），见 `docs/dev-flow.md` §6。
 - **号码全线唯一**：beta / 正式 / alpha 共用一条数字线，同一个 `X.Y.Z` 只能出现一次；
   有 `beta-v1.0.1` 就没有 `v1.0.1`，反之亦然；要发另一个渠道就用更高的号。
 - beta 是正式版前的候选版（不是「小版本更新」标记）；渠道由 tag 前缀表达，不靠版本串排序。
