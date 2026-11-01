@@ -7,8 +7,8 @@
 ## 1. 权威与规则
 
 - **最终权威归开发者**
-- 冲突时的取用顺序：**AGENTS.md > `docs/forAiDoc/` 各专文档 > `PROGRESS.md` / `todolist.md`
-  > `docs/archive/`**。都不合，停下来问开发者，不要自己拍板。
+- 冲突时的取用顺序：**AGENTS.md > `docs/forAiDoc/` 各专文档 > `PROGRESS.md` / `todolist.md`**。
+  都不合，停下来问开发者，不要自己拍板。
 - **待办唯一真相源是仓库根 `todolist.md`**：要做的事只写在那里，按阶段推进；
   旧的 `BACKLOG.md` 已作废、不再维护。**事实优先于文档**——能用 CLI / 代码常量表达的事实，
   不再单独写进文档。
@@ -107,9 +107,8 @@ Aris 是一个**基于大语言模型、类似 Neuro-sama 的赛博生命体**�
 | `data/` | 运行时数据：`config/`（含密钥）`pgdata/` `state/` `knowledge/` `characters/` `skills/` `autorun/` `logs/` `models/` `pg/` `bin/`（不进 git） |
 | `docs/forAiDoc/` | 设计与契约文档（为什么这么设计、接口是什么） |
 | `docs/dev-flow.md` | 人类开发流程（分支 → 提交 → 合并 → 发版） |
-| `docs/archive/` | 历史存档（已作废的规则与方案），只读 |
 | `tests/` | pytest 用例与测试支持（`tests/support/` 提供 mock LLM / HTTP） |
-| `scripts/` | 本地检修与发版脚本（`check.sh` / `release-check.sh` / `bump-version.sh` / `install-git-hooks.sh`） |
+| `scripts/` | 本地检修与发版脚本（`check.sh` / `release-check.sh` / `release.sh` / `bump-version.sh` / `install-git-hooks.sh`） |
 | `changelogs/` | 历史版本变更记录归档（最新版本在根 `CHANGELOG.md`） |
 | `CHANGELOG.md` | 最新版本与未发布改动（`[Unreleased]` 置顶） |
 
@@ -336,7 +335,6 @@ Aris 是一个**基于大语言模型、类似 Neuro-sama 的赛博生命体**�
 | 待办与阶段计划（唯一真相源） | `todolist.md` |
 | 当前阶段施工文档（过程性） | `docs/process/`（阶段结束后移入 `docs/archive/`） |
 | 项目蓝图 | `docs/forAiDoc/Aris-Project.md` |
-| 旧事 / 已作废的方案 | `docs/archive/`（本机保留、不随仓库分发；新克隆读不到） |
 | embedding（`store/` 侧） | `docs/forAiDoc/EMBEDDING.md` |
 | TUI 已知问题 | `docs/forAiDoc/TUI-问题修复.md` |
 
@@ -377,7 +375,7 @@ Aris 是一个**基于大语言模型、类似 Neuro-sama 的赛博生命体**�
 
 ## 11. 已知陷阱
 
-一句话一条，只写结论；来龙去脉在 `docs/archive/`。
+一句话一条，只写结论；来龙去脉见提交说明与 PR。
 
 ### 数据库 / 迁移
 
