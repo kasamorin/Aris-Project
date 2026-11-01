@@ -105,6 +105,22 @@ def make_release_repo(repo: Path, version: str = "0.5.0") -> Path:
     return repo
 
 
+def make_release_script_repo(repo: Path, version: str = "0.4.4", target: str = "0.4.5") -> Path:
+    """release.sh 需要的仓库：脚本 + 版本文件 + pyproject + 带目标版本段的 CHANGELOG。"""
+    make_release_repo(repo, version)
+    for name in ("bump-version.sh", "release.sh"):
+        shutil.copy(SCRIPTS / name, repo / "scripts" / name)
+    (repo / "CHANGELOG.md").write_text(
+        "# 变更记录\n\n## [Unreleased]\n\n"
+        f"## [{version}] - 2026-10-30\n\n### 新增\n- 旧版本\n\n"
+        f"## [{target}] - 2026-11-01\n\n### 新增\n- 目标版本\n",
+        encoding="utf-8",
+    )
+    git(repo, "add", "-A")
+    git(repo, "commit", "-qm", "release scripts")
+    return repo
+
+
 def bump(
     repo: Path,
     *args: str,
@@ -340,3 +356,34 @@ def test_release_check_rejects_number_used_by_alpha(repo: Path, tmp_path: Path) 
     out = release_check(repo, fake_uv(tmp_path))
     assert out.returncode == 1
     assert "已被 tag alpha-v0.5.0 占用" in out.stdout
+
+
+# ---- release.sh ----
+
+
+def release_script(repo: Path, *args: str, env: dict[str, str]) -> subprocess.CompletedProcess[str]:
+    return run(["bash", "scripts/release.sh", *args], repo, check=False, env=env)
+
+
+def test_release_script_creates_stable_branch(repo: Path, tmp_path: Path) -> None:
+    make_release_script_repo(repo)
+    out = release_script(repo, "patch", env=fake_uv(tmp_path, "0.4.5"))
+    assert out.returncode == 0, out.stdout + out.stderr
+    assert git(repo, "branch", "--show-current").stdout.strip() == "release/v0.4.5"
+    assert '__version__ = "0.4.5"' in (repo / "src" / "aris" / "__init__.py").read_text()
+    assert "v0.4.5" in out.stdout
+
+
+def test_release_script_creates_beta_branch(repo: Path, tmp_path: Path) -> None:
+    make_release_script_repo(repo)
+    out = release_script(repo, "--beta", "patch", env=fake_uv(tmp_path, "0.4.5"))
+    assert out.returncode == 0, out.stdout + out.stderr
+    assert git(repo, "branch", "--show-current").stdout.strip() == "release/beta-v0.4.5"
+    assert "beta-v0.4.5" in out.stdout
+
+
+def test_release_script_rejects_alpha(repo: Path) -> None:
+    make_release_script_repo(repo)
+    out = release_script(repo, "--alpha", "patch", env=os.environ)
+    assert out.returncode == 2
+    assert "alpha 不走 release 分支" in out.stderr

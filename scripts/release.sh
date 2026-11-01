@@ -1,9 +1,14 @@
 #!/usr/bin/env bash
 # 发版准备（v0.4.5 定稿流程：docs/dev-flow.md §6 / docs/process/v0.4.5.md §4.1）。
 #
+# 渠道由分支名表达（AGENTS.md §9）：
+#   正式版  release/vX.Y.Z        → 合并后打 vX.Y.Z
+#   beta    release/beta-vX.Y.Z   → 合并后打 beta-vX.Y.Z
+#   alpha   不走 release 分支，直接在 develop 打 alpha-vX.Y.Z（本脚本不处理）
+#
 # 做的事：
 #   1. 校验：在 develop、工作区干净、与 upstream/develop 比对、号码未占用
-#   2. 切 release/vX.Y.Z
+#   2. 按渠道切 release/vX.Y.Z 或 release/beta-vX.Y.Z
 #   3. 调 bump-version.sh 改版本号（uv lock / uv sync 由它自己跑）
 #   4. 提示手工封 CHANGELOG.md 的版本段（本脚本不改文案）
 #   5. 跑 release-check.sh（封版前会因 CHANGELOG 未写而 FAIL，属预期）
@@ -12,8 +17,9 @@
 # 不做：推送、PR、打 tag、合并 main —— 全部由开发者执行。
 #
 # 用法：
-#   bash scripts/release.sh 0.4.5
-#   bash scripts/release.sh patch     # 0.4.4 -> 0.4.5
+#   bash scripts/release.sh 0.4.5            # 正式版
+#   bash scripts/release.sh patch            # 正式版，0.4.4 -> 0.4.5
+#   bash scripts/release.sh --beta patch     # beta 渠道
 #   bash scripts/release.sh minor|major
 
 set -uo pipefail
@@ -28,13 +34,14 @@ VERSION_FILE="src/aris/__init__.py"
 
 usage() {
     cat <<'EOF'
-用法：bash scripts/release.sh <版本 | patch | minor | major>
+用法：bash scripts/release.sh [--beta] <版本 | patch | minor | major>
 
-  bash scripts/release.sh 0.4.5     # 指定版本
-  bash scripts/release.sh patch     # 当前版本 patch +1
-  bash scripts/release.sh minor     # minor +1，patch 归零
-  bash scripts/release.sh major     # major +1，其余归零
+  bash scripts/release.sh 0.4.5          # 正式版：release/v0.4.5
+  bash scripts/release.sh patch          # 当前版本 patch +1
+  bash scripts/release.sh --beta patch   # beta：release/beta-v0.4.5
+  bash scripts/release.sh minor|major    # minor / major +1
 
+alpha 不走 release 分支（直接在 develop 打 alpha-vX.Y.Z tag），本脚本不处理。
 只准备本地 release 分支；推送、PR、tag、合并 main 由开发者执行。
 EOF
 }
@@ -44,19 +51,36 @@ die() {
     exit 1
 }
 
-if [ $# -ne 1 ]; then
+channel="stable"
+args=()
+for item in "$@"; do
+    case "$item" in
+    -h | --help)
+        usage
+        exit 0
+        ;;
+    --beta) channel="beta" ;;
+    --alpha)
+        echo "错误：alpha 不走 release 分支，直接在 develop 打 alpha-vX.Y.Z tag" >&2
+        exit 2
+        ;;
+    -*)
+        echo "错误：未知参数 $item" >&2
+        usage >&2
+        exit 2
+        ;;
+    *)
+        args+=("$item")
+        ;;
+    esac
+done
+
+if [ ${#args[@]} -ne 1 ]; then
     usage >&2
     exit 2
 fi
 
-case "$1" in
--h | --help)
-    usage
-    exit 0
-    ;;
-esac
-
-arg="$1"
+arg="${args[0]}"
 
 # ---- 1. 前置校验 ----
 branch="$(git symbolic-ref --short HEAD 2>/dev/null || echo '<detached>')"
@@ -115,8 +139,14 @@ else
     echo "[warn] 没有 upstream 远端，跳过同步比对"
 fi
 
-# ---- 2. 切 release 分支 ----
-release_branch="release/v$base"
+# ---- 2. 切 release 分支（渠道由分支名表达）----
+if [ "$channel" = "beta" ]; then
+    release_branch="release/beta-v$base"
+    tag_hint="beta-v$base"
+else
+    release_branch="release/v$base"
+    tag_hint="v$base"
+fi
 if git show-ref --verify --quiet "refs/heads/$release_branch"; then
     die "分支 $release_branch 已存在，先处理（删除或改名）再重试"
 fi
@@ -145,12 +175,14 @@ rc=$?
 echo
 echo "后续（全部由开发者执行）："
 echo "  1. 封完 CHANGELOG 后重跑：bash scripts/release-check.sh    # 必须 PASS"
-echo "  2. git add -A && git commit -m 'chore(release): v$base'"
+echo "  2. git add -A && git commit -m 'chore(release): $tag_hint'"
 echo "  3. git push origin $release_branch"
 echo "  4. 上游开 PR：$release_branch → main"
-echo "  5. 合并后在上游 main 打 tag 并推送：v$base（beta 用 beta-v$base；alpha 只在 develop 用 alpha-v$base）"
-echo "  6. 再开 PR：main → develop（--no-ff 合并），随后删除 $release_branch"
-echo "  7. 不创建 GitHub Release（等 GUI 打包后补）"
+echo "  5. 在 PR 上开启原生自动合并：gh pr merge --auto --merge"
+echo "     （需上游已开 Allow auto-merge，且 main 的必需检查含 check + integration）"
+echo "  6. 合并后在上游 main 打 tag 并推送：$tag_hint"
+echo "  7. 再开 PR：main → develop（--no-ff 合并），随后删除 $release_branch"
+echo "  8. 不创建 GitHub Release（等 GUI 打包后补）"
 
 if [ "$rc" -ne 0 ]; then
     echo
