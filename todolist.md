@@ -182,13 +182,24 @@
    音频独立 TTS 队列 + 全局混音，**默认允许重叠、不 ducking**；角色间对话互相注入发言；
    每角色可绑自己的 LLM 提供商 / 模型。详见 `docs/process/v1.0.0-prep.md` §4.8。
 5. **Live2D**：远景，已有条目（v1 不做，GUI 之后）。
-6. **core 模块大优化**：**v1 做**，范围待定（总线 / LLM 引擎 / 工具循环哪一块优先）。
+6. **core 模块大优化**：**v1 做**，范围已定：LLM 引擎拆分、工具循环可控性（可中断 / 统一超时 /
+   错误归一）、工具循环并行调用；fallback 最终口径另记（第 15 条）。见 `v1.0.0-prep.md` §3.9。
 7. **`cli.py` 拆分**：**v1 做**，已有技术债记录（§5.2 填缝车道）。
 8. **arisdk**：**v1.x**。思路参考 neuro-sdk：WebSocket + 类型化 action 协议（Context / Registered actions /
    Forced actions），让外部程序 / 游戏声明动作、Aris 返回动作名 + JSON。
 9. **选择性回答 + 非逐条请求**：选择性回答已有设计（§4.4 门控档位
-   `only_trigger` / `probability` / `decision_batch` / `always`）；「非逐条请求」目前只覆盖
-   决策模型的攒批，**主模型仍是每条消息一轮**。需要新增平台侧攒批窗口（如 1~2 s / 最多 N 条
-   合并成一次请求）并做成可选项。
+   `only_trigger` / `probability` / `decision_batch` / `always`）；「非逐条请求」**已定**：
+   平台侧按 `batch_window`（默认 1.5 s）/ `batch_max`（默认 8 条）合并成一次主模型请求，
+   不依赖决策模型开启。
 10. **日常 ftf 对话**：**v1.x**。参考 AstrBot 插件或 AIRI 的做法；与语音链路耦合。
 11. **游戏接入**：**v1.x 以后**。可参考 neuro-sdk 的类型化 action 协议。
+12. **知识库（S12）**：按库配置 v1 **不做**，全局一套（`meta` 空着）；上传任务保持内存态，
+    补 `content_hash` 全局去重（不同文件名同内容直接 skipped）。
+13. **skills 导入（S12）**：同名拒绝、要更新先删；体积上限做成 `skills.toml [import]` 配置项
+    （默认 10 MB / 500 条 / 2 MB，按解压后算）；导入 / 删除后标 `prompt_dirty`、下一轮重建
+    system prompt；**不做**技能级开关。
+14. **会话生命周期**：`/#new` = 上下文到阈值时的行为（事件总结 + compact 两次调用），
+    不是清空；新增 `/#new-s` 强制开新会话。工具开关 / 技能变更 / 模型绑定统一标 `prompt_dirty`，
+    下一轮重建 `history[0]`（一次性 cache miss）。
+15. **fallback 最终口径**：现状三层（同模型多提供方 → 模型降级 → 降级后竞速恢复）；开发者要重新
+    说一版，未落文档前 §3.9 的引擎拆分不改行为。
