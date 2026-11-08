@@ -54,7 +54,8 @@
   `sha256` 永远在代码里（§3.8，§7-28 已结）。
 - **v1prep 工程化（2026-11-06）**：§4.5 补全搜索引擎注册表契约（落点拆 `search_engines.toml` 只是建议，
   待拍板）；§4.8 角色系统按代码校正——`character.toml` + `worldview/relations/growth.md`
-  （`prompt.md` 是早期商议产物、从未实现）、cid 规则与 12 位十六进制自动生成冲突、`CharacterStore.create()` 无 cid 校验
+  （2026-11-08 推翻：改回 `prompt.md` + `character.toml` 配置，三个 md 由泛记忆近似）、
+  cid 规则与 12 位十六进制自动生成冲突、`CharacterStore.create()` 无 cid 校验
   （S10 开入口前必须补，否则是目录穿越）；§4.14 skills 导入定下「内置 / 用户两层根 + 原子落盘 + 无沙箱」。
 - **记忆模型校正（2026-11-06）**：「重要」恢复为模型在抽取时打标（`weight = 1024`、直接常驻，
   不进则已、进则顶格）；检索退化为续命（只重置 `last_reinforced_at`，不改 `weight`）；
