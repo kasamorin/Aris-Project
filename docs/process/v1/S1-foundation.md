@@ -63,6 +63,13 @@
   等 S8 设置页真正需要成对显隐时再定义语义与测试。
 - **`config.items` 总线服务（2026-11-07 定）**：S1 就 `provide`，S8 设置页只做消费；
   S1 的验收靠 `iter_items()` / `as_dict()` 与测试，不靠 CLI 子命令。
+  **返回形状（2026-11-08 定）**：**扁平 `list[dict]`**，每项字段固定为
+  `key / file / scope / module / module_enabled / category / section / type / default /
+  control / apply / required / auto_empty / secret / hidden / nullable / choices /
+  min / max / step / pattern / options / collapsed / condition`；前端按 `category → section`
+  自己分组。不做后端嵌套树：分组映射已在 `CATEGORY_MAP`，再包一层只会多一套要同步的结构。
+- **`webui.show_audit`（2026-11-08 定）**：`WebUIConfig` 新增布尔项（默认 `False`），
+  进配置元数据；为 `False` 时侧栏不渲染审计入口（审计本身仍只在内存，见 §4.20）。
 
 **配置类归位**：没有 `conf.py` 的模块先把配置 dataclass 抽到 `<module>/conf.py`
 （已有：`store/conf.py`、`knowledge/conf.py`、`serve/conf.py`、`mcp/conf.py`），
@@ -118,6 +125,8 @@ vim / nano / sed 直接改 TOML，不再加全量列表命令。
 
 - `src/aris/i18n/__init__.py`：`t(key, **params)`、`set_locale()` / `current_locale()` /
   `detect_locale()`、按命名空间懒加载、缺失 key 回退 `zh-CN` 并记 DEBUG；`zh-CN` 也没有时返回 key 本身。
+- **插值（2026-11-08 定）**：简单 `{name}` 占位（`str.format_map`），缺参数保留占位并记 DEBUG；
+  **v1 不做复数 / 性别**，不引 ICU；将来需要时再按 `key.one` / `key.other` 约定扩展。
 - `src/aris/locales/{zh-CN,en}/{common,nav,settings,errors,cli,config}.json`；`config` 是新增命名空间，
   装配置项的 `config.<key>.label` / `.desc`、`config.tab.<id>` / `config.section.<id>`（T1 用）；
   键一律扁平点号，不嵌套。
