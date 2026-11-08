@@ -207,7 +207,8 @@ if [ "$fail" -eq 0 ]; then
         echo "  2. git add -A && git commit -m 'chore(release): 版本号 bump 至 $ver'"
         echo "  3. git tag alpha-v$ver（tag 必须指向这次提交）"
         echo "  4. 推送：git push origin develop && git push origin alpha-v$ver（由开发者执行）"
-        echo "  5. alpha 只在 develop，不开 PR、不进 main；tag 触发 smoke 档 CI"
+        echo "  5. 上游 develop PR 合并后推同号 tag：git push upstream alpha-v$ver"
+        echo "  6. alpha 不单独开 PR、不进 main；tag 触发 smoke 档 CI"
         ;;
     esac
     echo "  最后：不创建 GitHub Release（等 GUI 打包后补）"

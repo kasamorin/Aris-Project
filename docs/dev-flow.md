@@ -130,9 +130,11 @@ git add -A
 git commit -m "chore(release): 版本号 bump 至 0.4.7"
 git tag alpha-v0.4.7
 
-# 5. 推送由开发者执行
+# 5. 推送由开发者执行（fork 先推；上游 tag 等提交进入 upstream/develop 后再推）
 git push origin develop
 git push origin alpha-v0.4.7
+# 上游 PR 合并、bump 提交进入 upstream/develop 之后：
+git push upstream alpha-v0.4.7
 ```
 
 alpha 不进 `main`、不开 PR；`alpha-v*` tag 触发 `smoke` 档 CI。
@@ -181,6 +183,8 @@ git push origin release/vX.Y.Z
   （`aris-project-ai/Aris-Project`）；代码只推 `origin`，PR 开在 `upstream`。
 - 渠道与分支：alpha 不走 release 分支，直接在 `develop` 打 `alpha-vX.Y.Z`；beta 用
   `release/beta-vX.Y.Z`；正式版用 `release/vX.Y.Z`。tag 与分支一一对应，号码全线唯一。
+- tag 在 fork 与上游各保留一份：alpha tag 指向 develop 的 bump 提交（等提交进入
+  `upstream/develop` 后再推上游）；beta / 正式 tag 指向上游 `main` 的发布提交。
 - CI 分档（`.github/workflows/ci.yml`）：
   - 普通 PR 与 `develop` / `main` 的 push → `check`（ruff / format / mypy / pytest，PG 与 embedding 用例自动 skip）；
   - PR → `main` 与 push 到 `main` → `integration`（真起便携 PostgreSQL + 下载 embedding 模型，跑全量测试与冷启动自检）；
