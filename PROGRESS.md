@@ -12,6 +12,9 @@
 
 **v1.0「跨越」开发周期已启动**（`alpha-v0.4.6`），已进入施工：S1 从外部组件清单开始落代码，其余批次先收敛文档与决策。
 
+- **v1 未定事项已收口（2026-11-08）**：S1/S2、S9 消息平台、S10 记忆与角色、S12 知识库与
+  skills、S14 收尾、fallback 口径与 core 优化范围全部拍板并写回 `docs/process/v1.0.0-prep.md`
+  （§3.9 / §4.x / §7）；当前只剩 CONTRIBUTING / SECURITY 正文留到 S14 发布前。
 - **记忆系统对外定名 APEMS**（Aris Project Engram Memory System）：`Engram` 是名、`Memory System`
   是性质；代码仍叫 `memory`，界面导航仍叫「记忆」（2026-11-06 复核）。
 - **插件系统整体推迟 v1.1**，v1.0 不做也不预留接口；草案移到 `docs/process/v1.1-plugin-system.md`。
