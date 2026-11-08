@@ -204,3 +204,9 @@
 15. **fallback 最终口径**：**已定（2026-11-08）**——默认模型必配；出错先发 `llm_error_message`
     占位 → 同模型同提供方重试一次 → 全局一条 `fallback_models` 链逐个尝试 → 全失败 / 无链就停在
     占位等下一次请求；不粘滞、不竞速、已输出内容后不切换。删除「同模型换提供方」与每模型自带链。
+16. **mypy 范围**：v1 维持 `core` + `store`；扩不扩按长期收益评估，v1.x 再定。
+17. **tests 分组**：按模块分 `tests/<module>/`，`tests/support/` 留共享 mock，跨模块用例放
+    `tests/integration/`；S14 前完成。
+18. **GUI 深链**：v1 只做 `ariscore://`（`.desktop` 注册 handler）；托盘 / 通知 / 自动更新 / 全局快捷键 v1.x。
+19. **`except Exception`**：继续用 ruff BLE001，降级日志固定带异常类型与上下文，不加自定义 lint。
+20. **CONTRIBUTING / SECURITY**：留 S14 发布前收尾，正文程度到时再定。
