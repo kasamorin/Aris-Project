@@ -104,6 +104,13 @@
 （§3.3「通用设置页只覆盖扁平键值」）。`mcp.toml` 的 8 个超时 / 退避字段**登记 + `Item(hidden=True)`**
 （2026-11-07 定）：CLI 可见，MCP 页复用同一份元数据，通用设置页不渲染。
 
+> **只登记 S1 时已存在的配置类**：`memory.toml` / `skills.toml` / `providers.toml` / `tools.toml`
+> 随对应批次加入（落地即补进 `CONFIG_MODULES` 与本表），**不提前建空 config 类**。已提前定型、
+> 但要等后续批次落地的键：`providers.toml` 顶层 `default_model` / `fallback_models`（S7，结构化、
+> 不进通用设置页）、`memory.toml [retrieval]`（S10，默认 `hidden`，设置页开「高级检索参数」才渲染）、
+> `skills.toml [import]`（S12）、`tools.toml [disabled]`（S1 T3，结构化、不进通用设置页）。
+> `webui.show_audit` 属 S1，见下文。
+
 **生效方式**：S1 没有任何模块提供 `reload()`，`apply` 一律 `restart`，不标 `hot`。
 
 **CLI**：**不提供 `aris config items`**（2026-11-07 定）。全量元数据只经 `config.items`

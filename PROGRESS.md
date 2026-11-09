@@ -15,6 +15,14 @@
 - **v1 未定事项已收口（2026-11-08）**：S1/S2、S9 消息平台、S10 记忆与角色、S12 知识库与
   skills、S14 收尾、fallback 口径与 core 优化范围全部拍板并写回 `docs/process/v1.0.0-prep.md`
   （§3.9 / §4.x / §7）；当前只剩 CONTRIBUTING / SECURITY 正文留到 S14 发布前。
+- **v1 整体复查（2026-11-09，暂停在新商议前）**：已修掉一批文档不一致——§3.5 去掉「竞速」、
+  §4.4 补 `/#new-s`、§6 映射改为「视频不做、音频做」、§5.2 / §6 映射补 fallback 重写与遗漏条目、
+  S1 标注配置类随批次登记；`todolist.md` 清掉已取消的「简单 / 高级两套设置」「密码和 API key 加密」
+  与旧 D9 fallback。**仍开着**：① 搜索引擎注册表落点（独立 `search_engines.toml` vs 并回
+  `search.toml`）；② `skills.toml [import]` 在设置页的归属（8 个 tab 里没有 skills）；
+  ③ 根目录 `aris-icon.png` 的用途与存放。
+- **新商议（2026-11-09，未定，暂停原工作计划）**：① 角色主动可写的笔记系统（一条一条、可读可写
+  可改、模糊搜索）；② 角色卡按重要度排序，前 15 名标为「重要角色」的规则与展示位置。
 - **记忆系统对外定名 APEMS**（Aris Project Engram Memory System）：`Engram` 是名、`Memory System`
   是性质；代码仍叫 `memory`，界面导航仍叫「记忆」（2026-11-06 复核）。
 - **插件系统整体推迟 v1.1**，v1.0 不做也不预留接口；草案移到 `docs/process/v1.1-plugin-system.md`。
@@ -55,9 +63,9 @@
 - **外部组件清单定案**（2026-11-06）：`src/aris/infra/components.py`（**Python 常量**，不用 TOML），
   v1 只收 PG + embedding，排 **S1**；用户层 `data/config/components.toml` 只能覆盖 `url`（镜像），
   `sha256` 永远在代码里（§3.8，§7-28 已结）。
-- **v1prep 工程化（2026-11-06）**：§4.5 补全搜索引擎注册表契约（落点拆 `search_engines.toml` 只是建议，
-  待拍板）；§4.8 角色系统按代码校正——`character.toml` + `worldview/relations/growth.md`
-  （2026-11-08 推翻：改回 `prompt.md` + `character.toml` 配置，三个 md 由泛记忆近似）、
+- **v1prep 工程化（2026-11-06）**：§4.5 补全搜索引擎注册表契约（落点拆 `search_engines.toml` 仍待拍板）；
+  §4.8 角色系统原按代码校正为 `character.toml` + `worldview/relations/growth.md`
+  （**2026-11-08 再次推翻：改回 `prompt.md` + `character.toml` 配置**，三个 md 由泛记忆近似）、
   cid 规则与 12 位十六进制自动生成冲突、`CharacterStore.create()` 无 cid 校验
   （S10 开入口前必须补，否则是目录穿越）；§4.14 skills 导入定下「内置 / 用户两层根 + 原子落盘 + 无沙箱」。
 - **记忆模型校正（2026-11-06）**：「重要」恢复为模型在抽取时打标（`weight = 1024`、直接常驻，
