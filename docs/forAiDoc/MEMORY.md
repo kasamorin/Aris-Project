@@ -64,6 +64,7 @@
 | **两周记** | 聚合叙事（原料 = compact 摘要 + 事件） | 进（最近 1 篇） | 否 |
 
 - 总结类产物与事实一律不向量化：整段叙事切块后检索回来是残缺片段；两周记靠**时间直取 + 关键词**，事实靠**主体 + 谓词**直取。
+- 另有**角色笔记**（§7.4）：角色自己写的，不参与权重 / 衰减 / 晋升 / 向量化，v1 不自动注入。
 - **embedding 只找候选，展示永远是完整行/整块原文**，不做 chunk 截取。
 - **原始对话里的非文本消息**：以 `[图片]` / `[语音]` / `[文件]` 占位入历史，媒体文件另存 `data/memory/media/<id>`，工具按需取用（需要多模态时再转成图）。
 
@@ -172,6 +173,8 @@ w_eff = weight × 0.5^(Δt / H)
 - **可见性只管注入与检索，不管回复发到哪**：回复目标由发送工具决定，注入阶段不看目标渠道，也不按来源渠道过滤（§19.2）。
 - **硬删除**才真删行，只删提炼物、不动原文。
 - 改权重、标重要、钉住、可见性、隐藏/恢复，WebUI 与 CLI 都能做。
+- **人物卡（§5.4）也归用户管**：印象、重要度、固定位、槽位事实都能改；
+  `importance_source` 只记录「这次是谁设的」用于展示，**不做写入保护**——谁后改谁生效。
 
 ## 5. 事实层与人物
 
@@ -241,12 +244,23 @@ w_eff = weight × 0.5^(Δt / H)
 ### 5.4 人物卡（注入第四块）
 
 - **按人分卡**，不是全局一张「关于用户」：对话对象可能不止一个（群聊 / 多平台）。
+- **卡是派生的**：`memory_entities` 表示身份（名字 / 别名 / 平台 id）；**有事实 或 有直接对话**才算有卡。
+  纯提及只建身份、不建卡——人物页天然只有真正认识的人，路人不会污染列表、不会进前 15、不会占注入名额。
+  「有没有卡」由查询现算，**不存字段**，所以不会漂移。
+- **重要度** `importance`（0~100 整数，**每张卡都有**）：模型可标、用户可改；初始分按来源
+  主人 80 / 有直接对话 50 / 只有事实 30。`importance_source = default | model | user` 只用于展示，
+  不做写入保护。
+- **没有状态机**：不设 stub / active / archived。列表按重要度降序；低于阈值（默认 20，可配）折叠进
+  「其他」组、可展开。这是**视图**，不是数据库状态；长期没互动分数自然低，就待在「其他」里，随时搜得到。
+- **固定位**（用户设）：固定卡进注入，最多 3 张；固定不影响重要度。
 - **槽位段**（事实库投影、只读）：称呼 / 生日 / 住哪 / 在做 / 雷区 / 约定 / 在意的人；有就填，无则省行。
 - **自由段「我的印象」**（`memory_entities.impression`，≤150 字）：槽位装不下的长尾——相处方式、说不清的感觉、最近状态。
-  只由角色通过 `memory_update_impression` 写，或用户在 WebUI 改；**写满必须重写压缩，不自动截断**。
+  由角色通过 `memory_update_impression` 写，或用户在 WebUI / CLI 改；**写满必须重写压缩，不自动截断**。
 - **生成与缓存**：槽位段每轮从 `memory_facts` 现算（按实体 + 谓词取最新最可信的一条，不做全表排序）；
   自由段直接读 `impression`。**注入不调 LLM**。
 - **不够就不渲染**：一张卡的有效槽位 **<2 个就不输出**（整张跳过）；质量不够时它自己消失，而不是塞半张错卡。
+- **全部可编辑**：印象、重要度、固定位、槽位事实（用户 WebUI / CLI）；模型可改印象与重要度，
+  既有事实可用 `memory_update_fact` 更正（§7.2）。
 - **通用开关** `inject.people_card`（默认开，lite / full 共用一份配置）：关掉只是不注入，
   事实照样抽取、照样能在 WebUI / `memory_search` 里查。
 - 标记头 `[记忆·人物]`，取代原「关系摘要卡」；v1 不做社区摘要。
@@ -263,11 +277,15 @@ w_eff = weight × 0.5^(Δt / H)
 | 关键记忆 | `w_eff ≥ 512`，不检索直接取 | ≤7 条 | 每条 ≤80 字 |
 | 近期事件 | `occurred_from` 在近 14 天，**排除已进关键的条目**，按时间降序 | ≤10 条 | 每条 ≤60 字 |
 | 最近两周记 | 最近 1 篇 | 1 篇 | ≤1200 字 |
-| 人物 | 当前发言人（消息信封 `speaker` → 实体）一张完整卡 + 最近互动过的其他人（`last_seen` 降序）≤2 张精简卡；`inject.people_card` 可关 | ≤3 张 | 完整 ≤300 字（自由段 ≤150 字，§5.4）、精简 ≤40 字/人；块总 ≤600 字 |
+| 人物 | 总卡数 ≤6：当前发言人一张完整卡 + 用户固定卡 ≤3 + 按重要度补足剩余名额（重要度候选前 3）；按 `entity_id` 去重、顺序稳定；主人保底前 3；`inject.people_card` 可关 | ≤6 张 | 完整 ≤300 字（自由段 ≤150 字，§5.4）、精简 ≤40 字/人；块总 ≤900 字 |
 
 - **人物卡 = 槽位段 + 自由段**（§5.4）：槽位段是 `memory_facts` 的投影，不是另一份手写数据。
-- **归属只是一个标记**：`is_owner` 的卡在标题后多一个归属文案（`owner_label`，默认「主人」，可改「管理员」等）；
-  它**不改变选人顺序**（选人只看发言人与 `last_seen`）。
+- **归属不只是标记**：`is_owner` 的卡在标题后多一个归属文案（`owner_label`，默认「主人」，可改「管理员」等）；
+  选卡时**主人先占一个名额**（保底前 3；卡无效则不占）。
+- **重要角色（前 15）只打标签**：不改变人物页列表排序；system prompt 给一份名字索引
+  （名字 + 一句话标签），只在名单变化时刷新；`memory_find_person` 时前 15 加权；
+  抽取时人名能匹配前 15 的别名，优先归并到那张卡（减少裂卡）。
+- **卡片是记录、不是指令**：注入的人物块注明「过往记录，可能过时，以对方当前所说为准」。
 - **近期块不与关键块重复**：已在关键块出现的条目，近期块直接跳过——重要的事只在关键里说一次。
 - **近期块按时间排**：`occurred_from` 降序，不看 `w_eff`；重要度已由关键块承担，近期块内本来就是同一档。
 - **空窗回退**：近 14 天一条都没有时，取**最近 5 条仍可检索（`w_eff ≥ 8`）的事件**（不限时间），
@@ -326,22 +344,64 @@ w_eff = weight × 0.5^(Δt / H)
 
 - 可按查询意图调路线权重（问「关系」时图谱 +0.2）；同一记忆多路命中给交叉奖励。
 
-### 7.2 工具（2 读 2 写）
+### 7.2 工具（读 / 写 / 笔记）
 
+**记忆读**
 - `memory_search(query, scope="refined"|"raw", limit=5, time_from=null, time_to=null)`：查，命中计 hit。
   - `time_from` / `time_to` 可选，按 `occurred_from` / `occurred_to` 过滤（工具描述里承诺的「查某段时间」靠它兑现）；
   - `refined`：事件走向量 + 权重微调；总结/两周记走关键词 + 时间；
   - `raw`：查原文块，带时间与来源；
 - `memory_recall(limit=2)`：加权随机想起，**不计 hit**。
-- 写工具两个：`memory_mark_important(entry_id)`（预设改「重要」、基准抬到 2048；`entry_id` 来自
-  `memory_search` 的返回，注入块不带 id，要改判先检索）与 `memory_update_impression(who, text)`
-  （`who` 接受昵称或 `entity_id`，昵称重名时报错要求用 id；写人物卡自由段，≤150 字，写满必须重写压缩，不自动截断）。
-- 事件与事实只由抽取流水线产生，不开放给模型单独写；可见性、权重、钉住只有用户能改。
+- `memory_find_person(name, limit=5)`：查人物卡，返回 `entity_id` / 名字 / 重要度 / 槽位 / 印象 / 最近互动；
+  按名字 / 别名模糊匹配，**前 15 名加权**。补上「写完看不到、所以改不了」的闭环。
+
+**记忆写**
+- `memory_mark_important(entry_id)`：预设改「重要」、基准抬到 2048；`entry_id` 来自 `memory_search`
+  的返回，注入块不带 id，要改判先检索。
+- `memory_update_impression(who, text)`：`who` 接受昵称或 `entity_id`，昵称重名时报错要求用 id；
+  写人物卡自由段，≤150 字，写满必须重写压缩，不自动截断。
+- `memory_set_importance(who, value)`：`value` 0~100；用户也可在 WebUI / CLI 改，谁后改谁生效。
+- `memory_update_fact(fact_id, ...)`：**只改既有事实**（新事实仍只由抽取产生）；更正走「新行 + 旧行标
+  `superseded`」保留历史，返回新 `fact_id`；记 `updated_by`。工具描述写明「不确定就不要写」。
+
+**笔记**（常驻工具，§7.4）
+- `memory_note_write(note_id?, title?, content)`：无 id 新建、有 id 更新。
+- `memory_note_read(note_id)`、`memory_note_search(query?, limit?)`（空 query = 按更新时间列最近）、
+  `memory_note_delete(note_id)`。
+
+- **新事实与事件只由抽取流水线产生**；既有事实可由模型更正（`memory_update_fact`），
+  可见性、权重、钉住、固定位只有用户能改。
 - 工具描述写清「可以查很久以前、查某个人、查某段时间、也可以随机想起来点什么」，并给例句（防模型忘记用）。
 
 ### 7.3 总结类产物的取用
 
 - 两周记 / compact 摘要不向量化，两条通路：**按时间直取** + **关键词匹配**（`pg_trgm` 或 tsvector，不用裸 ILIKE）。
+
+### 7.4 角色笔记（常驻工具）
+
+- **定位**：角色自己写的东西，不是记忆库里的记忆——不参与权重 / 衰减 / 晋升 / 向量化。
+- **归属**：每角色（`cid`）一份，存 `data/characters/<cid>/notes.sqlite`（独立 SQLite，**不进记忆库**）：
+  切 full / lite / 换库都不丢，随角色目录一起备份、一起软删除；不依赖记忆库是否已初始化。
+- **形态**：一条 = 可选标题 + 正文；增 / 读 / 改 / 删 + 模糊搜索。
+- **检索**：SQLite **FTS5 + trigram**（中文 3 字切分，短词回退 LIKE）；**不用向量**（向量是语义检索，两回事）。
+- **上限**：`memory.toml [notes]`，默认每角色 **500 条 / 单条 4000 字**；超限直接拒绝并提示，不静默截断。
+- **v1 不自动注入**：只由模型按需调用（`memory_note_*`，§7.2）。
+- 表（SQLite，库内自带 `schema_version`）：
+
+```sql
+character_notes (
+    note_id text PRIMARY KEY,
+    cid text NOT NULL,
+    title text,                       -- 可选
+    content text NOT NULL,
+    created_at text NOT NULL,         -- ISO8601
+    updated_at text NOT NULL
+)
+-- FTS5 虚表 character_notes_fts：title / content，tokenize='trigram'
+```
+
+- 入口：WebUI 记忆页「笔记」tab；CLI `aris memory notes list|search|show|edit|remove`。
+- 旧的 `src/aris/behavior/skills/note/` 是早期测试 skill，**v1 前删除**。
 
 ## 8. compact 与维护调用
 
@@ -353,7 +413,7 @@ w_eff = weight × 0.5^(Δt / H)
 - **摘要结构**：第一人称 Markdown，五节 = §9.2 的统一要素（发生了什么 / 对方近况与状态 / 约定与承诺 / 关系与情绪变化 / 未完成的事），没内容写「（无）」；不提压缩过程、不写文件路径、不用「用户 / 对方」泛称。具体提示词与长度上限随实现进代码常量，不在文档里维护。
 - **参考 opencode 的三条做法**：保留最近原文；接近阈值时**后台预计算**；超长时**分级裁剪**（先裁工具输出 → 去掉工具输出 → 只留用户文本）。
 - **维护调用**（compact 摘要、事件抽取、两周记生成）带 maintenance 标记：**跳过 compact 检查**（防套娃）、不计轮次统计、不触发新回合与 autorun；`memory_recall` 是普通工具调用、不算维护调用。
-- 工具面固定 2 读 2 写，清单见 §7.2；维护调用不额外暴露写工具。
+- 工具面清单见 §7.2；维护调用不额外暴露写工具。
 - 摘要失败 → 回退「直接截断尾部」，不阻塞对话。
 
 ## 9. 写入与总结流水线
@@ -371,7 +431,8 @@ w_eff = weight × 0.5^(Δt / H)
 - **每个总结点都抽事件**：小会话 compact 时抽取（群聊可能几天不 compact，所以另有兜底）。
 - **兜底触发**：跨日或上下文达阈值也补一次抽取，避免一直不 compact。
 - 抽取可参考「未总结轮次阈值（默认 10）+ 跨天/空闲切窗」的触发思路（事件驱动，不依赖调度器）。
-- **v1 不开放模型主动写事件**：工具面固定 2 读 2 写（§7.2），事件与事实只由抽取产生。
+- **v1 不开放模型主动写事件、也不开放新增事实**：清单见 §7.2；事件与新事实只由抽取产生，
+  既有事实可由模型更正（`memory_update_fact`）。
 
 ### 9.2 总结流水线（各层共用一套结构）
 
@@ -412,7 +473,8 @@ w_eff = weight × 0.5^(Δt / H)
 ```json
 {"events": [{"content": "...", "brief": "...", "occurred_from": "...", "occurred_to": "...",
   "participants": ["名字"], "importance": 0.7, "mood": "happy",
-  "entities": [{"name": "...", "type": "person"}],
+  "entities": [{"name": "...", "type": "person", "aliases": ["..."],
+                "importance": 50}],
   "facts": [{"subject": "名字", "predicate": "lives_in",
              "object": "上海", "object_kind": "literal",
              "confidence": 0.9, "source": "stated", "evidence": "我住上海",
@@ -424,6 +486,8 @@ w_eff = weight × 0.5^(Δt / H)
 - **`mood` 可选**：预设七档 `happy` / `calm` / `warm` / `tired` / `down` / `annoyed` / `awkward`；
   都不贴切时**允许自拟一个短词**（≤12 字，原样存）。拿不准就整个省略，不硬编。
 - 同一 tool call 内实体一律**用名字引用**（模型看不到 id），落库时统一解析成 `entity_id`。
+- **`aliases` 是实体的硬要求**（昵称 / 称呼变体），lite 消歧只能靠它；`importance` 只对
+  `type=person` 有意义（0~100，人物卡初始分，缺失时按来源给默认分，§5.4）。
 - **`facts` 可选**，只抽「稳定的、会持续成立的信息」：
   - 每条必须带 `evidence`（原话片段），**抽不出原话就不写**；
   - 一次性的喜好、当下的情绪不抽，交给事件；
@@ -490,6 +554,8 @@ memory_entities (
     attrs jsonb NOT NULL DEFAULT '{}',
     is_owner boolean NOT NULL DEFAULT false,  -- 至多一个（部分唯一索引）；不是「当前发言人」
     impression text,                   -- 自由段「我的印象」，≤150 字
+    importance integer NOT NULL DEFAULT 50,   -- 0~100；人物卡排序与注入用（仅 person 有意义）
+    importance_source text NOT NULL DEFAULT 'default',  -- default | model | user（只展示，不锁定）
     first_seen timestamptz NOT NULL,
     last_seen timestamptz NOT NULL
 )
@@ -505,6 +571,7 @@ memory_facts (
     source_kind text NOT NULL,         -- stated | inferred | assumed
     evidence text,                     -- 原话片段
     source_event_id uuid,
+    updated_by text NOT NULL DEFAULT 'extraction',  -- extraction | model | user
     valence real,                      -- 态度类 -1~+1，可空
     status text NOT NULL DEFAULT 'active',   -- active | superseded | retracted
     weight integer NOT NULL,          -- 基准权重，不随衰减变小（§4.2）
@@ -547,7 +614,8 @@ memory_identities (                    -- 平台身份 → 实体；当前发言
 
 - `preset` / `weight` 只对 `kind=event` 有意义；compact / digest 按时间直取，不参与 `w_eff` 排序与晋升。
 - 索引：`memory_facts (cid, subject_id, status, predicate)`、`memory_facts (cid, object_entity_id)`、
-  `memory_entities (cid, last_seen DESC)`、`memory_entities (cid) WHERE is_owner`（部分唯一）、
+  `memory_entities (cid, last_seen DESC)`、`memory_entities (cid, importance DESC)`、
+  `memory_entities (cid) WHERE is_owner`（部分唯一）、
   `memory_hits (cid, entry_id, hit_on)`。
 - **没有 `relations` 表**：关系 = 对象是实体的 fact（§5.1）。
 - **事件的参与者只存 `memory_event_entities` 一处**：`memory_entries` 不再冗余 `participants` 列，避免实体合并后两处漂移。
@@ -624,7 +692,11 @@ memory_identities (                    -- 平台身份 → 实体；当前发言
 - 操作：改权重（特别记忆 / 取消）、标重要、钉住、可见性、软隐藏 / 恢复、硬删除（二次确认）。
 - 统计（4 项）：各 kind/预设条数、平均与最高 `w_eff`、近 7 天新增、命中分布。
 - 批量：按条件过滤后批量改权重 / 隐藏 / 钉住 / 删除。
-- **人物页**：每个 `type=person` 实体一张卡——槽位段（来自 `memory_facts`）、自由段「我的印象」、它的事实列表；可增删改事实、调 `confidence` / `status`、编辑印象、合并实体。
+- **人物页**：默认只显示**有卡的实体**（有事实 或 有直接对话），按重要度降序；低于阈值（默认 20，可配）
+  折叠进「其他」组，可展开。每张卡 = 槽位段（来自 `memory_facts`）+ 自由段「我的印象」+ 事实列表；
+  可增删改事实、调 `confidence` / `status` / 重要度、固定 / 取消固定、编辑印象、合并实体、改名。
+  「重要角色」只打标签，不改变排序。
+- **笔记 tab**：列表（按更新时间）/ 搜索（trigram）/ 新建 / 编辑 / 删除；与记忆库无关，切库不丢。
 - **设归属**：只在 `type=person` 的卡上出现；按钮文案随 `owner_label`（默认「设为主人 / 取消主人」，
   改成「管理员」就是「设为管理员 / 取消管理员」）。点「设为<label>」→ 同一 `cid` 里旧的 `is_owner` 先清、
   再设新的（同一事务）；已是归属人的卡显示「取消<label>」。没设归属是正常状态，选人不依赖它；
@@ -632,9 +704,10 @@ memory_identities (                    -- 平台身份 → 实体；当前发言
   一处对象是**人物实体**（canonical person），不是平台身份：同一个人绑了多个平台 id，设一次就够。
 - **大会话时间轴**：按时间聚类展示「哪段在做事、哪段空着」，可下钻到该段的原文与事件；这是判断作息与活跃度的主要入口。
 - **页面不触发 LLM**；全部走总线；CLI 对等：`aris memory list|search|recall|timeline|set-weight|mark-important|pin|hide|purge|rebuild-index|convert|migrate`，
-  外加 `aris memory facts list|edit|remove`、`aris memory impression show|set|clear`、`aris memory owner show|set|clear`
-  与 `aris memory entities list|merge|rename`（对应人物页的设归属 / 编辑印象 / 合并实体，CLI 不得少于 WebUI）。
-  `owner set <实体>` 接受 `entity_id` 或唯一名字；重名时必须用 id。
+  外加 `aris memory facts list|edit|remove`、`aris memory impression show|set|clear`、`aris memory owner show|set|clear`、
+  `aris memory entities list|merge|rename`、`aris memory importance set|show`、`aris memory pin-person set|clear`
+  与 `aris memory notes list|search|show|edit|remove`（对应人物页 / 笔记页，CLI 不得少于 WebUI）。
+  `owner set <实体>` / `importance set <实体>` 接受 `entity_id` 或唯一名字；重名时必须用 id。
 
 ## 16. 无决策模型时的降级（硬约束）
 
@@ -661,6 +734,7 @@ memory_identities (                    -- 平台身份 → 实体；当前发言
 ## 18. 未定 / 待议
 
 1. **检索重排权重** `0.7/0.3` 与 RRF 常数 `60`：先按默认实现，跑起来再调。
+2. **笔记的重要度 / 置顶 / 自动注入**：v1.x 再议，v1.0 只做手动查。
 
 ## 19. 实现默认（v1.0）
 
