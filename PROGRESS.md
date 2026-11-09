@@ -21,8 +21,13 @@
   与旧 D9 fallback。**仍开着**：① 搜索引擎注册表落点（独立 `search_engines.toml` vs 并回
   `search.toml`）；② `skills.toml [import]` 在设置页的归属（8 个 tab 里没有 skills）；
   ③ 根目录 `aris-icon.png` 的用途与存放。
-- **新商议（2026-11-09，未定，暂停原工作计划）**：① 角色主动可写的笔记系统（一条一条、可读可写
-  可改、模糊搜索）；② 角色卡按重要度排序，前 15 名标为「重要角色」的规则与展示位置。
+- **新商议已定稿（2026-11-10）**：① 角色笔记 = 每角色一份独立 SQLite（`data/characters/<cid>/notes.sqlite`，
+  不进记忆库、切库不丢），记忆系统常驻工具（`memory_note_write/read/search/delete`），可选标题 + 正文，
+  FTS5 trigram 模糊搜索、不用向量，默认 500 条 / 4000 字，v1 不自动注入；② 人物卡重要度 `0~100`
+  （模型可标、用户可改、`importance_source` 只显示不锁定），**卡是派生的**（纯提及只建身份，有事实或有
+  直接对话才算有卡，不做 stub/active/archived 状态机），进上下文 = 当前发言人 + 固定 ≤3 + 重要度前 3，
+  按 `entity_id` 去重、顺序稳定；主人保底前 3；前 15 只打标签 + 提示词名字索引 + `memory_find_person` 加权；
+  新增 `memory_find_person` 与 `memory_update_fact`。契约见 `docs/process/v1.0.0-prep.md` §4.7。
 - **记忆系统对外定名 APEMS**（Aris Project Engram Memory System）：`Engram` 是名、`Memory System`
   是性质；代码仍叫 `memory`，界面导航仍叫「记忆」（2026-11-06 复核）。
 - **插件系统整体推迟 v1.1**，v1.0 不做也不预留接口；草案移到 `docs/process/v1.1-plugin-system.md`。
