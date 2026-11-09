@@ -431,6 +431,10 @@ character_notes (
 - **每个总结点都抽事件**：小会话 compact 时抽取（群聊可能几天不 compact，所以另有兜底）。
 - **兜底触发**：跨日或上下文达阈值也补一次抽取，避免一直不 compact。
 - 抽取可参考「未总结轮次阈值（默认 10）+ 跨天/空闲切窗」的触发思路（事件驱动，不依赖调度器）。
+- **一次调用、只看当前上下文（2026-11-10 定）**：输入 = 本次 compact 同一段（history 去掉尾部 N 条），
+  **不读 DB、不设水位线、不分块**；上次摘要明确围栏为「前情，不要重复抽取」；尾部 N 条下一轮再抽。
+  失败走正常 LLM 重试 / fallback，**全失败就整轮失败**（不 compact、不回复），原文保留、下一轮重试；
+  单次事件条数上限默认 60（可配）。
 - **v1 不开放模型主动写事件、也不开放新增事实**：清单见 §7.2；事件与新事实只由抽取产生，
   既有事实可由模型更正（`memory_update_fact`）。
 
@@ -474,7 +478,7 @@ character_notes (
 {"events": [{"content": "...", "brief": "...", "occurred_from": "...", "occurred_to": "...",
   "participants": ["名字"], "importance": 0.7, "mood": "happy",
   "entities": [{"name": "...", "type": "person", "aliases": ["..."],
-                "importance": 50}],
+                "importance": 0.5}],
   "facts": [{"subject": "名字", "predicate": "lives_in",
              "object": "上海", "object_kind": "literal",
              "confidence": 0.9, "source": "stated", "evidence": "我住上海",
@@ -487,7 +491,7 @@ character_notes (
   都不贴切时**允许自拟一个短词**（≤12 字，原样存）。拿不准就整个省略，不硬编。
 - 同一 tool call 内实体一律**用名字引用**（模型看不到 id），落库时统一解析成 `entity_id`。
 - **`aliases` 是实体的硬要求**（昵称 / 称呼变体），lite 消歧只能靠它；`importance` 只对
-  `type=person` 有意义（0~100，人物卡初始分，缺失时按来源给默认分，§5.4）。
+  `type=person` 有意义（模型侧 0~1，落库 ×100 成 0~100；缺失时按来源给默认分，§5.4）。
 - **`facts` 可选**，只抽「稳定的、会持续成立的信息」：
   - 每条必须带 `evidence`（原话片段），**抽不出原话就不写**；
   - 一次性的喜好、当下的情绪不抽，交给事件；
