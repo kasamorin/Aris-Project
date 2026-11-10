@@ -154,9 +154,16 @@ Aris 是一个**基于大语言模型、类似 Neuro-sama 的赛博生命体**�
   可关模块把模块级 `provide()` 与迁移登记收进模块级 `register()`，由 `serve.assemble()`
   按模块开关显式调用，`__init__.py` 只做定义 / re-export（不 `provide()`、不 import 迁移）；
   `core` 是常驻基础设施，保持 import 即注册。不另建注册中心。
-- **缺失与异常**：`call` 遇到未注册的服务会记 error 日志 + 给出最相近的服务名建议，
-  **返回 `None`**（宽容降级）；被调函数抛异常则审计记 `ok=False` 后**原样抛出**。
-  因此调用方拿到 `None` 时要按「服务不可用」处理，不能直接属性访问。
+- **缺失与异常（三态，2026-11-11 定）**：`call` 遇到未注册的服务时，按**归属模块的实际装配状态**分级：
+  - 归属模块**本次没装配**（开关关 / `--skip` / `--only`）→ 记 **debug**、**返回 `None`**（预期降级）；
+  - 归属模块**已装配**、或前缀属于 core 常驻域（`llm` / `audit` / `http`）、
+    或前缀根本不存在（拼错）→ **抛 `ServiceMissing`**（带服务名、归属模块与模糊建议）；
+  - 被调函数抛异常 → 审计记 `ok=False` 后**原样抛出**。
+  归属靠 `infra/modules.py` 的 `ModuleSpec.services` 前缀反查，**装配集由 `serve.assemble()` 注入**
+  （取 `resolve_modules()` 的实际结果，不读 `modules.toml`）；没跑过 `assemble()` 的脚本保守保持
+  「miss 返回 `None`」。因此调用方只在模块可能没装的地方判 `None`，不要为「装配 bug」写兜底；
+  必需路径直接 `with call("store.connect") as conn:`——模块开着却缺服务就该当场炸。
+  **不设 `call_required()` 之类的双方法**：可选性边界由模块开关决定，不由调用点各自声明。
 - **事件**：`emit(event, payload)` / `subscribe(event, handler)`，同步执行；
   无订阅者时静默丢弃，单个订阅者异常不影响其他订阅者。
   **现状**：只有 `mcp.tools_changed` 一个发布者、**没有总线订阅者**（WebUI 的 SSE 走自有 broker）；

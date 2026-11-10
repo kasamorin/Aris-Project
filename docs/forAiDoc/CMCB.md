@@ -1,4 +1,8 @@
-# 跨模块通讯总线（CMCB）架构文档
+# 跨模块通讯总线（CMCB）
+
+> 状态：契约
+> 代码入口：`src/aris/core/bus.py`
+> 事实查看：`aris services list`
 
 > 2026-08-12 定案并落地。本文档是跨模块通讯总线（CMCB）的**唯一权威说明**，
 > 后续改动 bus 相关代码或新增服务时，须同步更新本文件。
@@ -89,10 +93,10 @@ from aris.core import call, emit, provide, subscribe, query_recent, query_summar
 # 注册服务（实例自注册，重名覆盖 + warning）
 provide("llm.stream", engine.stream)
 
-# 调用服务（同步；服务不存在返回 None + 模糊匹配建议日志）
+# 调用服务（同步；缺失语义见下文「缺失三态」）
 result = call("llm.stream", request)
 
-# 服务存在性检查（供启动自检等场景；call 对未注册服务宽容返回 None）
+# 服务存在性检查（供启动自检等场景；不要用它替代模块开关判断）
 provided = has_service("llm.stream")
 
 # 事件订阅与发布
@@ -105,7 +109,8 @@ summary = query_summary()            # 聚合统计
 ```
 
 **健壮性保证**（对应「后期加模块也稳」的需求）：
-- 服务不存在：返回 `None`，打 ERROR 日志 + `difflib` 模糊建议
+- 服务缺失按**三态**处理（见下节）：只有「归属模块本次没装配」才返回 `None`；
+  「模块已装却缺服务」与「前缀拼错」抛 `ServiceMissing`，附 `difflib` 模糊建议
   （"是不是想调用: xxx"）。
 - 服务执行抛异常：透传异常给调用方，但先记审计 `ok=False`。
 - 事件无订阅者：静默丢弃（事件是松耦合通知，不强求接收方）。
@@ -113,6 +118,36 @@ summary = query_summary()            # 聚合统计
 - 审计记录失败：静默降级，绝不拖累业务调用。
 - 线程安全：注册表/订阅表都用 `threading.Lock`，为将来 auto 模块的
   后台线程调用预留。
+
+### 缺失三态（2026-11-11 定）
+
+**动机**：过去所有缺失都返回 `None` + ERROR 日志，把两类完全不同的事混在一起——
+「模块关着，服务本来就不该有」是预期降级，「模块开着，服务却没了」是装配 bug，
+「前缀拼错」是笔误。调用方（尤其是 `call(...) or {}` 的宽容写法）无法区分。
+
+**判定顺序**（`call` 找不到服务时）：
+
+1. 前缀能反查到归属模块，且该模块**本次没装配** → debug 日志 + 返回 `None`；
+2. 前缀能反查到归属模块，且该模块**已装配** → 抛 `ServiceMissing(service, owner)`；
+3. 前缀属于 core 常驻域，或前缀根本不存在 → 抛 `ServiceMissing(service, owner=None)`。
+
+**归属映射**：直接用 `infra/modules.py` 的 `ModuleSpec.services`（模块 → 服务名前缀），
+反查出「前缀 → 模块」。不新增第二份映射表；新模块只要声明 `services=` 就自动纳入。
+
+**装配集从哪来**：`serve.assemble()` 把 `resolve_modules()` 的**实际装配结果**注入总线。
+因此 `--skip` / `--only` 让「配置说开、实际没装」也表现为预期降级；**不读
+`modules.toml`**——读盘只能知道「配置说开」，不能知道「这次真装了吗」。
+
+**没跑过 `assemble()` 的场合**（直接 `import aris.core` 的脚本）：保守保持旧行为，
+miss 一律返回 `None`。好处是裸用总线的脚本不会被新语义打断，代价是这类路径没有三态收益。
+
+**`ServiceMissing`**：继承 `RuntimeError`，字段 `service` / `owner` / `suggestions`，
+消息里同时给出「归属模块」与最相近的已注册服务。CLI 顶层与 WebUI 路由各接一次，
+转成非零退出 / 错误页；其余调用点不写兜底——装配 bug 应该炸在看得见的地方。
+
+**为什么不做 `call_required()` 双方法**：双方法把「这个服务是否可选」的判断交给调用点，
+而可选性其实由**模块开关**唯一决定；两套真相必然漂移，且全仓调用点要人工逐个判断。
+三态让总线用机器可读的事实自己判断，调用点零改动。
 
 ### `src/aris/core/audit.py` —— 审计统计层
 

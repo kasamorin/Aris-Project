@@ -71,6 +71,10 @@
 - **store 总线化已排进 S5**（2026-11-06 定）：业务模块不再直接 import store，统一走 `store.*`；
   连接对象走**方案 A（池化上下文）**——`store.connect` 从 `psycopg_pool` 借还、pgvector 适配器在池的
   `configure` 注册、事务边界仍归调用方，见 `v1.0.0-prep.md` §3.7。
+- **CMCB 缺失语义定案（2026-11-11）**：`call` 缺服务按三态处理——归属模块没装配 → `None`
+  （预期降级）；已装却缺 / core 域（`llm` / `audit` / `http`）/ 前缀拼错 → 抛 `ServiceMissing`。
+  归属用 `ModuleSpec.services` 反查、装配集由 `assemble()` 注入；**不新增 `call_required()`**。
+  排 **S1**（`S1-foundation.md` T7），见 `v1.0.0-prep.md` §3.7。
 - **外部组件清单定案**（2026-11-06）：`src/aris/infra/components.py`（**Python 常量**，不用 TOML），
   v1 只收 PG + embedding，排 **S1**；用户层 `data/config/components.toml` 只能覆盖 `url`（镜像），
   `sha256` 永远在代码里（§3.8，§7-28 已结）。
@@ -206,7 +210,8 @@
 - **`gh` CLI**：本机尚未安装；网页操作可用，配置后可简化 PR 与合并操作（auto-merge 的
   仓库开关仍需先在上游设置里打开）。
 - **安装态数据目录**：**包安装用 `~/.aris-project`，源码树用项目根 `data/`**（2026-11-06 定）；不做 XDG、不上 Flatpak。
-- **v1 文档仍在商议中**：`docs/process/v1.0.0-prep.md` §7 的待定项不要当成已定结论。
+- **v1 设计已收口**：`docs/process/v1.0.0-prep.md` §7 只剩 CONTRIBUTING / SECURITY 正文待定
+  （S14 前），其余条目均可直接施工。
 - STT 选型：候选 Groq Whisper / 通义听悟。
 - mypy 检查范围：当前只查 `core` + `store`，扩到其余模块的时间待定。
 - `CONTRIBUTING.md` / `SECURITY.md`：0 字节占位，S14 重写（面向人类、不引用 AI 文档）。

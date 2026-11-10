@@ -1,16 +1,16 @@
 # S1 契约与地基
 
-> 状态：可开工（§6 的问题已答；2026-11-07 方案 D 落定）
-> 代码入口：`src/aris/infra/`（config_items / components / toml / settings / branding）、`src/aris/i18n/`、`src/aris/behavior/registry.py`、`src/aris/cli.py`
+> 状态：可开工（§6 的问题已答；2026-11-07 方案 D 落定；2026-11-11 补 T7 CMCB 缺失三态）
+> 代码入口：`src/aris/infra/`（config_items / components / toml / settings / branding）、`src/aris/i18n/`、`src/aris/behavior/registry.py`、`src/aris/core/bus.py`、`src/aris/cli.py`
 > 事实查看：`config.items`（总线服务）、`aris config list`、`aris components list`、`aris tools list`
-> 上游契约：`docs/process/v1.0.0-prep.md` §3.3（配置项元数据）、§3.8（外部组件清单）、§4.13（工具开关）、§4.17（i18n）、§4.18（品牌）
+> 上游契约：`docs/process/v1.0.0-prep.md` §3.3（配置项元数据）、§3.7（CMCB 缺失三态）、§3.8（外部组件清单）、§4.13（工具开关）、§4.17（i18n）、§4.18（品牌）
 
 ## 1. 一句话
 
-把**后面每个批次都要踩的四样地基**立起来：配置项元数据（设置页 / CLI / 文档共用一套事实）、
+把**后面每个批次都要踩的五样地基**立起来：配置项元数据（设置页 / CLI / 文档共用一套事实）、
 外部组件清单（PG / embedding 的版本与校验值集中一处）、i18n 基建（新文案一律走 `t()`）、
-工具开关（`ToolSpec.enabled` 接到配置与 CLI）。
-这一批**不做设置页、不做写回、不做前端**——那些在 S8。
+工具开关（`ToolSpec.enabled` 接到配置与 CLI）、CMCB 缺失三态（服务缺失按模块装配状态分级，
+装配 bug 不再伪装成「服务不可用」）。这一批**不做设置页、不做写回、不做前端**——那些在 S8。
 
 ## 2. 出口条件（DoD）
 
@@ -24,6 +24,7 @@
 | 6 | 外部组件版本只在一处 | `grep -rn "bekko-embedding" src/` 只剩 `infra/components.py`；`store/bootstrap.py` 里无版本 / 校验常量；`aris components list --json` 可解析 |
 | 7 | 全检通过 | `bash scripts/check.sh` |
 | 8 | 关闭模块的 import 不产生注册副作用 | `tests/test_import_isolation.py`：import `aris.store` / `aris.knowledge` / `aris.mcp` / `aris.webui` / `aris.character` / `aris.behavior` 后，`services()` 不含这些模块的服务；`knowledge` 迁移未登记 |
+| 9 | 缺服务按三态分级 | `tests/test_bus_missing.py`：模块没装 → `None`；已装却缺 / 前缀拼错 → `ServiceMissing`；未注入装配集 → `None` |
 
 ## 3. 任务
 
@@ -211,6 +212,27 @@ S1 不碰这块。
   不一致只 warning（重建数据目录不自动做）。
 - **不做**：下载逻辑（留在 `store/bootstrap.py`，这里只是事实）；uv（打包工具，归 S13）；
   STT / TTS / 本地推理运行时（v1 不预留空结构）。
+
+### T7 CMCB 缺失语义三态（Lead）
+
+`v1.0.0-prep.md` §3.7 已定：`call` 找不到服务时按**归属模块的实际装配状态**分三态，
+不再新增 `call_required()`。调用点零改动。
+
+- **`core/bus.py`**：
+  - 新增 `ServiceMissing(RuntimeError)`：字段 `service` / `owner` / `suggestions`；
+    消息里带归属模块与 `difflib` 模糊建议。
+  - 新增 `set_assembled(modules: frozenset[str] | None)`：`serve.assemble()` 注入**本次实际装配**
+    的模块名集合；`None` = 没跑过装配（保守退回「miss 一律 `None`」）。
+  - 前缀 → 模块反查：由 `infra/modules.py` 的 `MODULES[].services` 生成，不新增第二份表。
+  - `call` 的 miss 分支按三态判定（已注册 → 照常；模块没装 → debug + `None`；已装却缺 /
+    core 域 / 未知前缀 → 抛）。
+- **`serve/__init__.py`**：`state = resolve_modules(load_modules())` 之后**立刻**注入装配集，
+  再 import 各模块——保证 `--skip` / `--only` 与 behavior 运行时装配失败都能被正确表达。
+- **入口兜底**：`cli.py` 顶层接 `ServiceMissing` → 打错误 + 非零退出；WebUI 注册异常处理
+  → 错误页（不裸 traceback）。
+- **测试**：`tests/test_bus_missing.py` 覆盖三态 + 未注入 + 拼错；现有用例若因新语义暴露
+  「模块开着却缺服务」的真实装配漏洞，按 bug 修，不放宽断言。
+- **不做**：`call_required()` / `has_service` 语义变更 / 读 `modules.toml` 判断装配状态。
 
 ## 4. 不做（明确划线）
 
