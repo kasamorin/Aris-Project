@@ -25,9 +25,12 @@
 | 有状态/无状态 | 无状态，每次传全量 `messages` | 无状态，每次传全量 `messages` |
 | 系统提示 | `messages` 数组里的 `system`（或 `developer`）角色 | 顶层 `system` 字段（不占 messages 位置） |
 | 多轮续接 | 手动把前次 assistant 消息追加进 `messages` | 同样手动追加 |
+| 同角色连续消息 | **允许**：DeepSeek 官方 harness 刻意连发两条 `user`；opencode 的「排队 + 中途插话」也是连续 `user` | **未核实**（官方文档区域不可达）；AstrBot 的 Anthropic 适配层会合并相邻同角色，理由是 `tool_result` 块必须排在文本前 |
 | 响应文本位置 | `choices[0].message.content` | `content[]` 块数组（`type:"text"`） |
 
 三家都是**无状态、手动维护全量历史**，这是 Aris 采用「每次请求拼全量 messages」方案的基础。
+
+**同角色连续不是硬限制**：`user, user, user` 在 OpenAI / DeepSeek 上是合法请求（DeepSeek 自己的 harness 就刻意连发两条 `user`，opencode 的排队插话同理）。Aris 的「概率回复」会让 `user` 连发成为常态，因此**不为凑交替而人为插入 assistant 消息**。
 
 ### 1.3 工具调用结构差异（最容易踩坑）
 

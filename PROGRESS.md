@@ -28,6 +28,12 @@
   直接对话才算有卡，不做 stub/active/archived 状态机），进上下文 = 当前发言人 + 固定 ≤3 + 重要度前 3，
   按 `entity_id` 去重、顺序稳定；主人保底前 3；前 15 只打标签 + 提示词名字索引 + `memory_find_person` 加权；
   新增 `memory_find_person` 与 `memory_update_fact`。契约见 `docs/process/v1.0.0-prep.md` §4.7。
+- **阈值触发的两次调用已定稿（2026-11-10）**：① 事件抽取 = **一次抽取任务、只看当前上下文**
+  （与 compact 同一段 history，不读 DB、不设水位线、不分块），走标准 `AgentLoop`（`tool_calls` 后必须回传
+  `tool` 结果）、维护工具 `memory_find_person` + `memory_write_events`、`max_rounds` 4、单次事件上限 60；
+  ② compact 摘要 = **滚动合并 + 要素化**（不写第一人称）、不设长度上限、不做模板校验、空输出算失败，
+  摘要是一条带 `[记忆·对话摘要]` 的 `user` 消息。两次失败语义统一：全失败整轮失败；抽取幂等靠
+  `extract_key` 覆盖重写。契约见 `docs/process/v1.0.0-prep.md` §4.21。
 - **记忆系统对外定名 APEMS**（Aris Project Engram Memory System）：`Engram` 是名、`Memory System`
   是性质；代码仍叫 `memory`，界面导航仍叫「记忆」（2026-11-06 复核）。
 - **插件系统整体推迟 v1.1**，v1.0 不做也不预留接口；草案移到 `docs/process/v1.1-plugin-system.md`。
