@@ -75,6 +75,10 @@
   （预期降级）；已装却缺 / core 域（`llm` / `audit` / `http`）/ 前缀拼错 → 抛 `ServiceMissing`。
   归属用 `ModuleSpec.services` 反查、装配集由 `assemble()` 注入；**不新增 `call_required()`**。
   排 **S1**（`S1-foundation.md` T7），见 `v1.0.0-prep.md` §3.7。
+- **用户自选与 v1 语音范围收窄（2026-11-11）**：v1 不做独立 TTS / STT（音频只走多模态内容块）；
+  可选参数直接给扁平 TOML 键，**不做预设 / 档位**；人格与表达归 `prompt.md`；不做「只观察」模式；
+  每日主动消息上限、token / 费用预算不在 v1。记忆 / 平台 / 成本三类仍写死的参数清单记进
+  `todolist.md`「给予用户更多可设置项」，细节以后再说。
 - **外部组件清单定案**（2026-11-06）：`src/aris/infra/components.py`（**Python 常量**，不用 TOML），
   v1 只收 PG + embedding，排 **S1**；用户层 `data/config/components.toml` 只能覆盖 `url`（镜像），
   `sha256` 永远在代码里（§3.8，§7-28 已结）。
