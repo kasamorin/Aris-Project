@@ -284,6 +284,8 @@
     先出架构方案与迁移步骤，拍板后再动 S7 相关代码。
 39. **[p] 消息平台首个实现改为 Matrix**：v1 只做 Matrix，平台抽象层保留；**OneBot v1 不做**（NapCat 停更、
     SnowLuma 转私有，协议端生态不稳定），将来若做目标是 OneBot v11（v12 仍在开发）。
-    已定：密码 + token 登录（不做 OAuth2 / refresh token）、device_id 由 homeserver 生成且不轮换、
-    别名默认不拼完整 id（用户可手填短别名）、自动进房 / E2EE 默认关、适配器目录 `platforms/adapters/`。
+    已定：密码 + token 登录（不做 OAuth2 / refresh token）、密码与 token 都存 `secrets.toml`（token 失效自动重登、
+    沿用 device_id）、device_id 由 homeserver 生成且不轮换、别名默认不拼完整 id（用户可手填短别名）、
+    自动进房 / E2EE 默认关、离线回放 60 分钟 / 每房间 50 条、入站图片上限 20 MB（均可配）、
+    适配器目录 `platforms/adapters/`。
     余下：落文档收尾 + S9 施工。
