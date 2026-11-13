@@ -39,9 +39,11 @@
   refresh token；`device_id` 由 homeserver 生成并持久化、不自动轮换；别名默认不拼完整 id、用户可手填
   短别名；自动进房与 E2EE 默认关；适配器目录 `src/aris/platforms/adapters/`。契约见
   `docs/process/v1.0.0-prep.md` §4.4。
-- **v1 打包范围加入 Gentoo ebuild（2026-11-13）**：v1.0 出 Arch 包 + deb + Gentoo ebuild（x86_64）。
-  主树已有 `dev-python/uv`，ebuild 不内置 uv；但该包默认 `python-downloads = "manual"`，
-  首启 wrapper 必须先显式 `uv python install 3.14` 再 `uv sync`。发行形式与 GUI 构建方式见 §7-49。
+- **v1 打包范围加入 Gentoo ebuild（2026-11-13）**：v1.0 出 Arch 包 + deb + Gentoo ebuild（x86_64），
+  其中 ebuild 含 GUI 源码构建（`dev-lang/go` + `go-module.eclass`）。主树已有 `dev-python/uv`，
+  ebuild 不内置 uv；但该包默认 `python-downloads = "manual"`，首启 wrapper 必须先显式
+  `uv python install 3.14` 再 `uv sync`。**不做真机 `emerge` 验证**（只做 `pkgcheck scan` 等静态校验，
+  发布说明标注未验证）。发行形式（最小 overlay vs 单个 ebuild）见 §7-49。
 - **记忆系统对外定名 APEMS**（Aris Project Engram Memory System）：`Engram` 是名、`Memory System`
   是性质；代码仍叫 `memory`，界面导航仍叫「记忆」（2026-11-06 复核）。
 - **插件系统整体推迟 v1.1**，v1.0 不做也不预留接口；草案移到 `docs/process/v1.1-plugin-system.md`。
