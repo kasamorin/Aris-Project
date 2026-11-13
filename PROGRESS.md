@@ -62,6 +62,10 @@
   一条消息、自带 `covers_upto_seq`；JSONL **每轮结束写、先 JSONL 后 PG**。逐条原文只在 `chat_messages`，
   记忆库存语义块 `memory_chunks`（自带正文 + `source_ref` 溯源），需要原文时走总线 `chat.history.read`。
   契约见 §4.4。
+- **门控唤醒与缓冲入库（2026-11-13）**：不新增唤醒前缀——群聊触发集合 = @ / 回复 / `/#`；`/#XXX` 未命中
+  指令表即视为「指定对模型说话」（等价 @），已知指令无权限则回「没有权限」并拦下。概率 / 决策判「说」时，
+  决策环形缓冲（≤20 条）随命中消息一次性写入 `chat_messages`（按 `event_id` 去重），一直不命中的聊天永不落库。
+  平台页「账号卡 → 设置 → 会话」块顶部放 `gate_defaults`、下面列已知聊天逐行改覆盖。契约见 §4.4、§4.12。
 - **v1 打包范围加入 Gentoo ebuild（2026-11-13）**：v1.0 出 Arch 包 + deb + Gentoo ebuild（x86_64），
   其中 ebuild 含 GUI 源码构建（`dev-lang/go` + `go-module.eclass`）。主树已有 `dev-python/uv`，
   ebuild 不内置 uv；但该包默认 `python-downloads = "manual"`，首启 wrapper 必须先显式
