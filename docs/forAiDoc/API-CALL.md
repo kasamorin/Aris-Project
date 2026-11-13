@@ -563,13 +563,16 @@ POST https://api.openai.com/v1/responses     # OpenAI 有 /v1
 - **多轮回传规则**见 2.3 节：带 tools 时必须回传 reasoning_content（chat 路径）
 - **Aris 约定**：思考模式**默认关闭**，开关放配置文件；打开时才用 `effort`
 
-### 4.2 Anthropic API 兼容（**不实现**）
+### 4.2 Anthropic API 兼容（**2026-11-13 改为 v1.0 适配**）
 
 DeepSeek 提供 `base_url=https://api.deepseek.com/anthropic` 的 Anthropic 兼容端点，
 但其服务端工具、图片、document、MCP tool 支持面与 Anthropic 官方并不一致
 （如 `tool_result` 支持、图片/document 不支持）。
 
-**2026-09-28 定案：Aris 不接 Anthropic 兼容端点**（用户决定），保留本节仅作资料备查。
+**2026-09-28 的「Aris 不接 Anthropic 兼容端点」已作废**；2026-11-13 定 **v1.0 三种格式都做**
+（Chat Completions / Responses / Anthropic），与 `v1.0.0-prep.md` §4.2 的格式适配清单一致。
+接入注意：**按端点实测能力降级，不假定与 Anthropic 官方一致**——DeepSeek 的 anthropic 端点
+缺图片 / document / 部分 tool_result 支持，能力探测结果要能反映到模型允许列表与设置页。
 
 ### 4.3 图像理解 / 多模态（2026-09-28 新增，首期能力）
 

@@ -87,6 +87,11 @@
 - **默认模型与种子（2026-11-13）**：种子 `providers.toml` 的 `default_model` **留空**（运行期按
   `default_provider_order` 取第一个可用模型）；模型改名为 `deepseek-flash`、capabilities 加 `vision`。
   官方已确认旧名 `deepseek-v4-flash` 仍被接受但模型已下线（由 V4.1-Flash 承接）。
+- **API 格式适配（2026-11-13）**：v1.0 三种都做——Chat Completions / Responses / Anthropic；
+  `API-CALL.md` §4.2 原来「不接 Anthropic」的 2026-09-28 定案作废，改为「按端点实测能力降级」。
+- **实现细则第二批（2026-11-13）**：前端三态（加载 / 空 / 错，Jinja include + 服务端错误映射）、
+  长任务沿用 `webui/tasks`（内存、不持久化、备份用不确定进度）、轮次 PG 写失败「重试一次后作废本轮」、
+  写库只在 chat 队列 + 记忆侧按 cid 加锁、SSE 断线插分隔不补历史。契约见 §4.27 ⑧–⑫。
 - **v1 打包范围加入 Gentoo ebuild（2026-11-13）**：v1.0 出 Arch 包 + deb + Gentoo ebuild（x86_64），
   其中 ebuild 含 GUI 源码构建（`dev-lang/go` + `go-module.eclass`）。主树已有 `dev-python/uv`，
   ebuild 不内置 uv；但该包默认 `python-downloads = "manual"`，首启 wrapper 必须先显式
