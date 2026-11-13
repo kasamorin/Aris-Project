@@ -47,10 +47,11 @@
   其他来源靠 `send_message` 或不回）；满了只封批，不中止输出、不丢消息。提示层来源标签按连续段打、
   不逐条重复，结构化来源仍逐条入库。契约见 §4.4。
 - **来源段头与两周记开关（2026-11-13）**：段头**拼进消息内容**（`[Matrix 摸鱼群 | 小明]` 群聊 /
-  `[Matrix 小明]` 私聊 / `[Matrix 群 | 小明]` 无名群），格式本身表达群聊与私聊，约定写进 system prompt
-  开头；时间只在相邻消息间隔超过 `time_gap_minutes`（默认 5 分钟）时插一行 `[14:32]`。
-  两周记生成与注入拆成两个开关（`fortnightly.enabled` / `inject.fortnightly`，都默认开），
-  设置页复用父项控制子项显隐。契约见 §4.4、§4.7。
+  `[Matrix 小明]` 私聊 / `[Matrix 群 | 小明]` 无名群；前端只标 `[TUI]` / `[WebUI]` / `[GUI]`），
+  格式本身表达群聊与私聊，约定写进 system prompt 开头；时间只在相邻消息间隔超过
+  `time_gap_minutes`（默认 10 分钟）时插一行 `[14:32]`。
+  两周记是**总开关 + 子开关**：`fortnightly.enabled` 关掉即生成 / 注入 / 检索全关（旧记录保留），
+  `inject.fortnightly` 关掉只是不注入。契约见 §4.4、§4.7。
 - **v1 打包范围加入 Gentoo ebuild（2026-11-13）**：v1.0 出 Arch 包 + deb + Gentoo ebuild（x86_64），
   其中 ebuild 含 GUI 源码构建（`dev-lang/go` + `go-module.eclass`）。主树已有 `dev-python/uv`，
   ebuild 不内置 uv；但该包默认 `python-downloads = "manual"`，首启 wrapper 必须先显式
