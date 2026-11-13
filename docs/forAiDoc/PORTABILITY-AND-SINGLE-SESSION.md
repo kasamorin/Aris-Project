@@ -105,7 +105,7 @@
 | `channel` | `tui` / `voice` / `sns` / `internal` | 通道（决定"场合风格"） |
 | `speaker` | 用户标识 或 `aris` 或 `system` | 一对多必须区分谁在说 |
 | `expects_reply` | bool | 该消息是否期待 Aris 回应（SNS 里刷到的不一定要回） |
-| `kind` | `human` / `aris` / `aris_monologue` / `system` | 消息性质 |
+| `kind` | `user` / `assistant` / `system`（2026-11-13 改：对齐 `MessageRole`，独白并入 `assistant`） | 消息性质 |
 | `source` | 同上（元数据） | 来源系统，**入库供溯源/审计/WebUI 时间线** |
 
 - **历史是合并的**：不按对话方分独立上下文（那与"单一会话"冲突，且 Aris 会记不住跨人的事）
@@ -123,7 +123,8 @@
 | `monologue` | **独白/思索**（不对任何人说） |
 | `none` | 不发（只想/只记） |
 
-- **独白进历史**（`kind=aris_monologue`）：下次能续上自己的思考，也参与大会话聚类与记忆提取
+- **独白进历史（2026-11-13 修）**：不设独立 kind——它就是「这一轮没走 `send_message` 的输出」，
+  落成普通 `assistant` 行；下次能续上自己的思考，也参与大会话聚类与记忆提取
 - **sns 双向都算 sns**：读到别人的社交消息与 Aris 往社交发的回复都标 `sns`，
   口吻判断才一致
 

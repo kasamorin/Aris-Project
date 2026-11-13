@@ -163,9 +163,10 @@ CLI：`aris web --host 0.0.0.0 --port 9690`；host / port / session 天数进
 
 ### 对话历史 `/history`
 
-- **占位页**：显示「后续实现」提示，待大会话机制落地后补充具体设计
-- 后续将展示：按日期选择 → 展示当天所有小会话 → 按大会话分组的时间线视图
-- 数据来源：`<data_dir>/logs/YYYY-MM-DD/<HH-MM-SS±时区>.jsonl`
+- 契约见 `docs/process/v1.0.0-prep.md` §4.26（v1 重整后重写本段）：左 1/3 列表 + 右 2/3 详情，
+  左栏顶部角色下拉 + 「小会话 | 大会话」切换；手机端竖排。
+- 数据来源：PG 的 `chat_sessions` / `chat_messages`（经 chat 服务）与记忆侧 `memory_conversations` /
+  `memory_entries` / `notes.sqlite`（经 memory 服务）。**不再是 `data/logs/` 的 jsonl**。
 
 ## 鉴权（定案）
 

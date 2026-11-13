@@ -75,6 +75,11 @@
   侧栏品牌区一行 + 关于页一行，点版本号即手动检查；CLI 不加入口；`update.toml` 的
   `mode = auto|manual|off` + `interval_hours`，超时 10 s 重试一次，失败静默，可按版本忽略。
   契约见 §4.25。
+- **大会话与历史界面（2026-11-13）**：大会话口径落数（`user|assistant` 的 `occurred_at`，最大间隔 < 2h 停，
+  `memory_conversations` 按需重算）；独立 `/history` 页＝左 1/3 列表 + 右 2/3 详情（上消息、下事件与笔记，
+  小会话视图无下半），手机端竖排；`chat_messages.kind` 改 `user|assistant|system|compact` 并加 `tools`；
+  不做关键词检索，深链 v1.x；笔记补 `created_at`/`updated_at`（工具默认不返回时间）。
+  契约见 §4.7、§4.26。
 - **v1 打包范围加入 Gentoo ebuild（2026-11-13）**：v1.0 出 Arch 包 + deb + Gentoo ebuild（x86_64），
   其中 ebuild 含 GUI 源码构建（`dev-lang/go` + `go-module.eclass`）。主树已有 `dev-python/uv`，
   ebuild 不内置 uv；但该包默认 `python-downloads = "manual"`，首启 wrapper 必须先显式
