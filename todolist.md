@@ -312,3 +312,12 @@
 41. **笔记简化**：现有角色笔记设计偏重（每角色一份独立 SQLite、FTS5 trigram、500 条 / 4000 字配额、
     `memory_note_write/read/search/delete` 四个工具）。评估能不能砍——工具数、存储形态、检索方式、
     是否就按「文件 + 简单检索」做。**先列出现有设计每一项的真实成本，再决定砍哪个**，不直接动 S10 契约。
+
+## 2026-11-13 新记：DeepSeek API 适配器
+
+42. **DeepSeek 联网搜索 API 适配器**：把 DeepSeek 的联网搜索接进搜索引擎池（`behavior/search/`，
+    现有 Bing 直连 / Tavily / Exa）。**先查官方文档**确认是否为独立端点、鉴权方式、请求 / 返回结构与配额，
+    未验证前不写死字段；默认是否进引擎池、优先级、key 归属（`secrets.toml`）随实现定。
+43. **DeepSeek 全家桶 API 适配器**：除现有 chat completions 外，把 DeepSeek 平台其余 API 一并适配
+    （FIM / 模型列表 / 余额 / 其它，**范围待确认**），落在 `core/llm/` 的提供方适配层、复用现有 provider 抽象。
+    哪些进 v1.0、哪些留 v1.x 待议；开工前先把「全家桶」的清单列出来对齐。
