@@ -315,9 +315,36 @@
 
 ## 2026-11-13 新记：DeepSeek API 适配器
 
-42. **DeepSeek 联网搜索 API 适配器**：把 DeepSeek 的联网搜索接进搜索引擎池（`behavior/search/`，
-    现有 Bing 直连 / Tavily / Exa）。**先查官方文档**确认是否为独立端点、鉴权方式、请求 / 返回结构与配额，
-    未验证前不写死字段；默认是否进引擎池、优先级、key 归属（`secrets.toml`）随实现定。
-43. **DeepSeek 全家桶 API 适配器**：除现有 chat completions 外，把 DeepSeek 平台其余 API 一并适配
-    （FIM / 模型列表 / 余额 / 其它，**范围待确认**），落在 `core/llm/` 的提供方适配层、复用现有 provider 抽象。
-    哪些进 v1.0、哪些留 v1.x 待议；开工前先把「全家桶」的清单列出来对齐。
+42. **DeepSeek 联网搜索 API 适配器**：DeepSeek 有**独立的** Search / Fetch JSON API，可直接进搜索引擎池
+    （`behavior/search/`，现有 Bing 直连 / Tavily / Exa）。**已按官方文档核实（2026-11-13）**：
+    - 端点 `POST https://api.deepseek.com/v1/tools/search`（`query` 1~128 字、`count` 1~50 默认 10、
+      `need_content` 默认 false、可选 `ori_question` / `localization`）；`POST /v1/tools/fetch`
+      （`url` ≤ 8192，返回 `title` + Markdown 正文）。Bearer 鉴权，与 chat 共用同一 API Key。
+    - 返回 `results[]`：`rerank_score`（0~3，≥ 1.5 为优质）/ `title` / `url` / `snippet` / `summary` /
+      `content` / `site_name` / `site_icon` / `date` / `authority`（0~4，-1 未知）。
+    - 计费**只算成功请求**（Search 结果非空、Fetch 拿到正文）：每千次 5 元；QPS 按账号算，
+      Search 100 / Fetch 25，与用哪个 Key 无关。
+    - **别和「联网工具」混**：`deepseek_web_search` / `deepseek_read_url` 是 chat 请求里的服务端工具，
+      结果以内容块回传、要原样带回下一轮；引擎池接的是上面两个独立端点。独立 Search 暂不支持图片搜索。
+    - 落地：新增一个引擎（Key 复用 `DEEPSEEK_API_KEY`），默认是否进池 / 优先级 / Fetch 是否兼作「读链接」
+      随实现定；整页正文要截断，别把整页塞进上下文。
+43. **DeepSeek 全家桶 API 适配器**：除 chat completions 外，把 DeepSeek 平台其余 API 纳入适配层
+    （`core/llm/`，复用现有 provider 抽象）。**已按官方 API Reference 核实（2026-11-13）**，范围是：
+    - 协议：Responses `POST /responses`、Anthropic Messages `POST /anthropic/v1/messages`、
+      FIM 补全 `POST /beta/completions`（Beta，仅非思考模式）。
+    - 管理：`GET /models`（含 context_window / max_output_tokens / 输入输出模态 / effort 档位 /
+      按协议的能力声明）、`GET /user/balance`（`is_available` + `balance_infos`，CNY / USD，
+      total / granted / topped_up）。
+    - 工具：Search、Fetch（见 #42）、OCR `POST /v1/tools/ocr`、TTS `POST /v1/tools/tts`
+      （另有同路径 WebSocket，`stella` 女声 / `tide` 男声，wav 或 24 kHz PCM）、
+      ASR `POST /v1/tools/asr`（整段上传，WAV / Ogg Opus）。
+    - Files：上传 / 列出 / 查询 / 删除。
+    - Chat 扩展字段（不是独立端点）：`deepseek_web_search`、`deepseek_read_url`、`safety_check`、
+      `title`、`user_id`；启用联网工具 / `safety_check=high` / `title` 时，temperature、top_p 等
+      由服务端接管，传了也被忽略。
+    - 分批：v1.0 只做**真正进链路**的——#42 独立 Search + `GET /models`（模型元数据正好补提供商管理的
+      fetch）+ 余额（提供商页 / CLI 可看）；TTS / ASR 留给语音阶段（TTS 可作 Edge TTS 的后备，
+      ASR 进 STT 候选）；Responses / Anthropic 兼容 / FIM / Files / OCR 先不做，因为不进当前链路。
+    - **待核对**：官方现行模型 ID 是 `deepseek-flash` 与 `deepseek-v4-pro`，本地种子 `providers.toml`
+      仍写 `deepseek-v4-flash`，实现前确认是改名还是兼容旧名。
+    - 动手前重新核一遍官方文档，不照本条写死字段。
