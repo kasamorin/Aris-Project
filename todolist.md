@@ -6,7 +6,7 @@
 - [] WebUI重整，分为Dashboard与WebChat
 - [x] 宣布项目公开
 - [] 基于MyGO框架的GUI
-- [] 对于发行版进行软件包打包（GUI 之后；v1：Arch + deb + Gentoo ebuild）
+- [] 对于发行版进行软件包打包（GUI 之后；v1：Arch 走 AUR 的 `ariscore` + deb + Gentoo ebuild，GURU 留 v1.x）
 - [] .desktop文件（同样在GUI之后）
 - [] Live2D 支持（v1 不做，GUI 之后）
 - [] 记忆系统和角色系统

@@ -45,7 +45,10 @@
   其中 ebuild 含 GUI 源码构建（`dev-lang/go` + `go-module.eclass`）。主树已有 `dev-python/uv`，
   ebuild 不内置 uv；但该包默认 `python-downloads = "manual"`，首启 wrapper 必须先显式
   `uv python install 3.14` 再 `uv sync`。**不做真机 `emerge` 验证**（只做 `pkgcheck scan` 等静态校验，
-  发布说明标注未验证）；仓库只放单包 ebuild 目录 `packaging/gentoo/app-misc/ariscore/`，不维护 overlay。
+  发布说明标注未验证）；仓库只放单包 ebuild 目录 `packaging/gentoo/net-im/ariscore/`，不维护 overlay。
+- **分发渠道（2026-11-13）**：GitHub Releases 是唯一真相源（源码 tarball + `.deb` + `.pkg.tar.zst` +
+  `SHA256SUMS`），**不自建二进制仓库**——Arch 走 AUR（`ariscore`，必要时补 `-bin`）、Gentoo 本地 overlay
+  起步并在 v1.x 提交 GURU、deb 直接下载（要 `apt upgrade` 时 v1.x 再上 OBS）、Flatpak 不做。
 - **记忆系统对外定名 APEMS**（Aris Project Engram Memory System）：`Engram` 是名、`Memory System`
   是性质；代码仍叫 `memory`，界面导航仍叫「记忆」（2026-11-06 复核）。
 - **插件系统整体推迟 v1.1**，v1.0 不做也不预留接口；草案移到 `docs/process/v1.1-plugin-system.md`。
