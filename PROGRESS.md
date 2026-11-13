@@ -71,6 +71,10 @@
   首启拆成启动器（Python + 依赖）与 `aris serve`（便携 PG）两段；进度用 `<data>/state/setup.json`
   阶段提示 + GUI「正在准备运行环境」页，不假造百分比；产物命名 `aris-project_1.0.0_amd64.deb` /
   `aris-project-1.0.0-1-x86_64.pkg.tar.zst` / `SHA256SUMS`。契约见 §4.15。
+- **版本检测（2026-11-13）**：v1.0 做「检测 + 提示」，只查 GitHub Releases 的 `latest`（正式版）；
+  侧栏品牌区一行 + 关于页一行，点版本号即手动检查；CLI 不加入口；`update.toml` 的
+  `mode = auto|manual|off` + `interval_hours`，超时 10 s 重试一次，失败静默，可按版本忽略。
+  契约见 §4.25。
 - **v1 打包范围加入 Gentoo ebuild（2026-11-13）**：v1.0 出 Arch 包 + deb + Gentoo ebuild（x86_64），
   其中 ebuild 含 GUI 源码构建（`dev-lang/go` + `go-module.eclass`）。主树已有 `dev-python/uv`，
   ebuild 不内置 uv；但该包默认 `python-downloads = "manual"`，首启 wrapper 必须先显式
