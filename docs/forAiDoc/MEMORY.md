@@ -369,7 +369,7 @@ w_eff = weight × 0.5^(Δt / H)
   `superseded`」保留历史，返回新 `fact_id`；记 `updated_by`。工具描述写明「不确定就不要写」。
 
 **笔记**（常驻工具，§7.4）
-- `memory_note_write(note_id?, title?, content)`：无 id 新建、有 id 更新。
+- `memory_note_write(note_id?, content)`：无 id 新建、有 id 更新；**第一行即标题**（不单设 `title` 参数）。
 - `memory_note_read(note_id)`、`memory_note_search(query?, limit?)`（空 query = 按更新时间列最近）、
   `memory_note_delete(note_id)`。
 
@@ -386,22 +386,20 @@ w_eff = weight × 0.5^(Δt / H)
 - **定位**：角色自己写的东西，不是记忆库里的记忆——不参与权重 / 衰减 / 晋升 / 向量化。
 - **归属**：每角色（`cid`）一份，存 `data/characters/<cid>/notes.sqlite`（独立 SQLite，**不进记忆库**）：
   切 full / lite / 换库都不丢，随角色目录一起备份、一起软删除；不依赖记忆库是否已初始化。
-- **形态**：一条 = 可选标题 + 正文；增 / 读 / 改 / 删 + 模糊搜索。
-- **检索**：SQLite **FTS5 + trigram**（中文 3 字切分，短词回退 LIKE）；**不用向量**（向量是语义检索，两回事）。
-- **上限**：`memory.toml [notes]`，默认每角色 **500 条 / 单条 4000 字**；超限直接拒绝并提示，不静默截断。
+- **形态**：一条 = **一段纯文本，第一行即标题**（2026-11-13 砍掉独立标题字段）；增 / 读 / 改 / 删 + 模糊搜索。
+- **检索**：`content LIKE` 全表扫（上限 2 MB 量级，毫秒级），命中按 `updated_at` 倒序；**不用 FTS5 / trigram**
+  （2026-11-13 砍，此量级无性能收益），**也不用向量**（向量是语义检索，两回事）。
+- **上限**：`memory.toml [notes]`，默认每角色 **500 条 / 单条 4000 字**（含首行），可配；超限直接拒绝并提示，不静默截断。
 - **v1 不自动注入**：只由模型按需调用（`memory_note_*`，§7.2）。
-- 表（SQLite，库内自带 `schema_version`）：
+- 表（SQLite，库内自带 `schema_version`；`cid` 不进表——库文件路径已编码）：
 
 ```sql
 character_notes (
     note_id text PRIMARY KEY,
-    cid text NOT NULL,
-    title text,                       -- 可选
-    content text NOT NULL,
+    content text NOT NULL,            -- 第一行即标题，不单列
     created_at text NOT NULL,         -- ISO8601
     updated_at text NOT NULL
 )
--- FTS5 虚表 character_notes_fts：title / content，tokenize='trigram'
 ```
 
 - 入口：WebUI 记忆页「笔记」tab；CLI `aris memory notes list|search|show|edit|remove`。
@@ -727,7 +725,7 @@ memory_identities (                    -- 平台身份 → 实体；当前发言
   折叠进「其他」组，可展开。每张卡 = 槽位段（来自 `memory_facts`）+ 自由段「我的印象」+ 事实列表；
   可增删改事实、调 `confidence` / `status` / 重要度、固定 / 取消固定、编辑印象、合并实体、改名。
   「重要角色」只打标签，不改变排序。
-- **笔记 tab**：列表（按更新时间）/ 搜索（trigram）/ 新建 / 编辑 / 删除；与记忆库无关，切库不丢。
+- **笔记 tab**：列表（按更新时间）/ 搜索（`LIKE` 子串，无全文索引）/ 新建 / 编辑 / 删除；与记忆库无关，切库不丢。
 - **设归属**：只在 `type=person` 的卡上出现；按钮文案随 `owner_label`（默认「设为主人 / 取消主人」，
   改成「管理员」就是「设为管理员 / 取消管理员」）。点「设为<label>」→ 同一 `cid` 里旧的 `is_owner` 先清、
   再设新的（同一事务）；已是归属人的卡显示「取消<label>」。没设归属是正常状态，选人不依赖它；

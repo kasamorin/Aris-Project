@@ -80,6 +80,10 @@
   小会话视图无下半），手机端竖排；`chat_messages.kind` 改 `user|assistant|system|compact` 并加 `tools`；
   不做关键词检索，深链 v1.x；笔记补 `created_at`/`updated_at`（工具默认不返回时间）。
   契约见 §4.7、§4.26。
+- **笔记简化（2026-11-13）**：角色笔记砍掉标题字段（一条笔记 = 一段纯文本，**第一行即标题**）、
+  砍掉 FTS5 + trigram（改 `content LIKE` 全表扫，2 MB 量级毫秒级）、砍掉冗余 `cid` 列；
+  保留每角色独立 `notes.sqlite`、4 个常驻工具、500 条 / 4000 字可配上限与两个时间戳。
+  契约见 §4.7。
 - **v1 打包范围加入 Gentoo ebuild（2026-11-13）**：v1.0 出 Arch 包 + deb + Gentoo ebuild（x86_64），
   其中 ebuild 含 GUI 源码构建（`dev-lang/go` + `go-module.eclass`）。主树已有 `dev-python/uv`，
   ebuild 不内置 uv；但该包默认 `python-downloads = "manual"`，首启 wrapper 必须先显式

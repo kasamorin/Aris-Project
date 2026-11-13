@@ -222,8 +222,9 @@
 22. **角色笔记系统（已定稿；2026-11-13 补时间戳）**：每角色（`cid`）一份，存 `data/characters/<cid>/notes.sqlite`
     （独立 SQLite，**不进记忆库**，切 full / lite / 换库都不丢，随角色目录备份与软删）；
     做成记忆系统里的**常驻工具**（不是 skill）：`memory_note_write` / `memory_note_read` /
-    `memory_note_search` / `memory_note_delete`；一条笔记 = **可选标题 + 正文**；**模糊搜索用 FTS5 trigram，
-    不用向量**；上限默认 **500 条 / 单条 4000 字**（进 `memory.toml [notes]`，超限拒绝不截断）；
+    `memory_note_search` / `memory_note_delete`；一条笔记 = **一段纯文本，第一行即标题**（不单设标题字段）；
+    检索用 `content LIKE`（**不用 FTS5 trigram**，也不做向量——500 条 / 2 MB 上全文索引无收益）；
+    上限默认 **500 条 / 单条 4000 字**（进 `memory.toml [notes]`，可配，超限拒绝不截断）；
     v1 **不自动注入**，只由模型按需调用；WebUI + CLI 都提供管理入口。
     **时间字段（2026-11-13 定）**：加 `created_at` / `updated_at`（ISO8601 TEXT），供大会话视图按段归位；
     但**工具默认不返回时间**，模型明确要看时间时才给（WebUI / CLI 列表照常显示）。
@@ -309,9 +310,11 @@
     天然不含 beta / alpha）；提示 = 侧栏品牌区一行 + 关于页一行，**点版本号那一行就是手动检查**；
     CLI 不加入口（源码用户 `git pull`、包用户走包管理器）；`update.toml` 的 `mode = auto|manual|off`
     + `interval_hours`；失败静默、可按版本忽略。契约见 `docs/process/v1.0.0-prep.md` §4.25。
-41. **笔记简化**：现有角色笔记设计偏重（每角色一份独立 SQLite、FTS5 trigram、500 条 / 4000 字配额、
-    `memory_note_write/read/search/delete` 四个工具）。评估能不能砍——工具数、存储形态、检索方式、
-    是否就按「文件 + 简单检索」做。**先列出现有设计每一项的真实成本，再决定砍哪个**，不直接动 S10 契约。
+41. **[x] 笔记简化（2026-11-13 已定）**：砍三样——① **标题字段**：一条笔记 = 一段纯文本，**第一行即标题**，
+    工具描述里写一句即可；② **FTS5 + trigram**：改 `content LIKE` 全表扫（2 MB 量级毫秒级），不建虚表与触发器；
+    ③ 冗余 `cid` 列（库文件路径已编码）。保留：每角色独立 `notes.sqlite`、**4 个常驻工具**、
+    上下限 **500 / 4000 字可配**、`created_at` / `updated_at`（工具默认不返回时间）。
+    契约见 `docs/process/v1.0.0-prep.md` §4.7。
 
 ## 2026-11-13 新记：DeepSeek API 适配器
 
