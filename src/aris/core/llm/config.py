@@ -155,7 +155,7 @@ def load_providers(path: str | Path) -> ProviderConfig:
 
     结构：
         default_provider_order = ["deepseek"]
-        default_model = "deepseek-v4-flash"
+        default_model = "deepseek-flash"   # 留空则按提供方顺序取第一个可用模型
         [[providers.provider]]
         id = "deepseek"
         timeout = 30
@@ -164,7 +164,7 @@ def load_providers(path: str | Path) -> ProviderConfig:
         backoff_base = 0.5
         race_fallback = true
         [[providers.provider.models]]
-        id = "deepseek-v4-flash"
+        id = "deepseek-flash"
         fallback_models = ["deepseek-v3"]
         context_length = 1000000
         capabilities = ["tools", "reasoning"]

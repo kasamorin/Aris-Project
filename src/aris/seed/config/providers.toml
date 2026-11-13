@@ -5,7 +5,7 @@
 default_provider_order = ["deepseek"]
 
 # 默认模型（CLI 未指定 --model 时使用；缺失时自动兜底取第一个可用模型）
-default_model = "deepseek-v4-flash"
+default_model = ""   # 留空 = 不指定默认模型，运行期按 default_provider_order 取第一个可用模型
 
 # 每个提供方一个 [[providers.provider]] 条目
 [[providers.provider]]
@@ -18,10 +18,10 @@ transport = "sdk"                   # sdk（openai SDK）/ httpx（手写请求�
 
   # 该提供方下的模型列表
   [[providers.provider.models]]
-  id = "deepseek-v4-flash"          # 统一模型 id（跨提供方 fallback 匹配用）
-  name = "DeepSeek V4 Flash"        # 显示名
-  request_name = "deepseek-v4-flash" # 实际请求时用的模型名
+  id = "deepseek-flash"             # 统一模型 id（跨提供方 fallback 匹配用）
+  name = "DeepSeek Flash"           # 显示名
+  request_name = "deepseek-flash"   # 实际请求时用的模型名（官方现行名，旧名 deepseek-v4-flash 仍被接受但已下线）
   formats = ["chat"]                # 支持的格式（当前仅 chat）
   context_length = 1000000          # 可选：上下文窗口（tokens），供展示/选型
-  capabilities = ["tools", "reasoning"]  # 可选：能力关键词（tools/reasoning/vision）
+  capabilities = ["tools", "reasoning", "vision"]  # 可选：能力关键词（tools/reasoning/vision）
   thinking_default = false          # 可选：默认关闭思考模式（None=跟随提供方）

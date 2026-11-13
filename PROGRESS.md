@@ -84,6 +84,9 @@
   砍掉 FTS5 + trigram（改 `content LIKE` 全表扫，2 MB 量级毫秒级）、砍掉冗余 `cid` 列；
   保留每角色独立 `notes.sqlite`、4 个常驻工具、500 条 / 4000 字可配上限与两个时间戳。
   契约见 §4.7。
+- **默认模型与种子（2026-11-13）**：种子 `providers.toml` 的 `default_model` **留空**（运行期按
+  `default_provider_order` 取第一个可用模型）；模型改名为 `deepseek-flash`、capabilities 加 `vision`。
+  官方已确认旧名 `deepseek-v4-flash` 仍被接受但模型已下线（由 V4.1-Flash 承接）。
 - **v1 打包范围加入 Gentoo ebuild（2026-11-13）**：v1.0 出 Arch 包 + deb + Gentoo ebuild（x86_64），
   其中 ebuild 含 GUI 源码构建（`dev-lang/go` + `go-module.eclass`）。主树已有 `dev-python/uv`，
   ebuild 不内置 uv；但该包默认 `python-downloads = "manual"`，首启 wrapper 必须先显式

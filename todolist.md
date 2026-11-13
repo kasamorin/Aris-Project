@@ -316,9 +316,12 @@
     上下限 **500 / 4000 字可配**、`created_at` / `updated_at`（工具默认不返回时间）。
     契约见 `docs/process/v1.0.0-prep.md` §4.7。
 
-## 2026-11-13 新记：DeepSeek API 适配器
+## 2026-11-13 新记：DeepSeek API 适配器（**全部留 v1.x**，2026-11-13 定）
 
-42. **DeepSeek 联网搜索 API 适配器**：DeepSeek 有**独立的** Search / Fetch JSON API，可直接进搜索引擎池
+> v1.0 只保持现有 DeepSeek chat 兼容接入，**Search 引擎、全家桶、平台 API 一律不动**。
+> 下面三条是已按官方文档核实过的事实，留作 v1.x 开工依据，不要在 v1.0 期间开工。
+
+42. **[v1.x] DeepSeek 联网搜索 API 适配器**：DeepSeek 有**独立的** Search / Fetch JSON API，可直接进搜索引擎池
     （`behavior/search/`，现有 Bing 直连 / Tavily / Exa）。**已按官方文档核实（2026-11-13）**：
     - 端点 `POST https://api.deepseek.com/v1/tools/search`（`query` 1~128 字、`count` 1~50 默认 10、
       `need_content` 默认 false、可选 `ori_question` / `localization`）；`POST /v1/tools/fetch`
@@ -331,7 +334,7 @@
       结果以内容块回传、要原样带回下一轮；引擎池接的是上面两个独立端点。独立 Search 暂不支持图片搜索。
     - 落地：新增一个引擎（Key 复用 `DEEPSEEK_API_KEY`），默认是否进池 / 优先级 / Fetch 是否兼作「读链接」
       随实现定；整页正文要截断，别把整页塞进上下文。
-43. **DeepSeek 对话应用 API（官方「全家桶」）适配**：指官方「构建 Chatbot」那套能力
+43. **[v1.x] DeepSeek 对话应用 API（官方「全家桶」）适配**：指官方「构建 Chatbot」那套能力
     （`/zh-cn/guides/build_a_chatbot`），**不是**把所有 REST 端点接一遍。清单（2026-11-13 核实）：
     联网搜索、深度思考搜索、文件输入（PDF / Word / PPT / 图片的文本提取或图文混排解析）、阅读链接、
     模型内容安全、用户元信息标记、会话标题、朗读回答（TTS）、语音输入（ASR）。
@@ -346,8 +349,12 @@
       文件输入涉及隐私与计费，知识库继续本地摄入；`safety_check` / `title` / 用户元信息个人项目用不上；
       TTS / ASR 留语音批次评估（TTS 可作 Edge TTS 后备，ASR 进 STT 候选）。
     - 结论：**v1.0 不接这套**；Chat Completions 本来就支持，另两种协议不必为它去适配。
-44. **DeepSeek 平台 API（不属于「全家桶」）**：`GET /models`、`GET /user/balance`、
+44. **[v1.x] DeepSeek 平台 API（不属于「全家桶」）**：`GET /models`、`GET /user/balance`、
     FIM `POST /beta/completions`（Beta，仅非思考模式）、Files（上传 / 列出 / 查询 / 删除）、
-    OCR `POST /v1/tools/ocr`。v1.0 只会用到 `GET /models`（补提供商管理的 fetch）与余额展示；
-    FIM / Files / OCR 不进当前链路，留 v1.x。**待核对**：官方现行模型 ID 是 `deepseek-flash` /
-    `deepseek-v4-pro`，本地种子 `providers.toml` 仍写 `deepseek-v4-flash`，实现前确认是改名还是兼容旧名。
+    OCR `POST /v1/tools/ocr`。v1.x 先做 `GET /models`（补提供商管理的 fetch）与余额展示；
+    FIM / Files / OCR 不进当前链路。
+    **已核实（2026-11-13，官方 Models & Pricing）**：现行模型只有 `deepseek-flash`（V4.1-Flash-1017）
+    与 `deepseek-v4-pro`（V4-Pro-0813），均 1M 上下文 / 384K 输出；`deepseek-flash` 支持 Vision。
+    旧名 `deepseek-v4-flash` / `deepseek-v4-flash-vision-exp` **仍被接受但模型已下线**，请求由
+    V4.1-Flash 承接、按 Flash 价计费。**种子已改为** `deepseek-flash` 且 `default_model` **留空**
+    （运行期按提供方顺序取第一个可用模型）。
