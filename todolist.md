@@ -6,7 +6,7 @@
 - [] WebUI重整，分为Dashboard与WebChat
 - [x] 宣布项目公开
 - [] 基于MyGO框架的GUI
-- [] 对于发行版进行软件包打包（GUI 之后；v1：Arch 走 AUR 的 `ariscore` + deb + Gentoo ebuild，GURU 留 v1.x）
+- [] 对于发行版进行软件包打包（GUI 之后；v1：进源只走 AUR 的 `aris-project`，deb 与 Gentoo ebuild 只挂 Release / 本地 overlay）
 - [] .desktop文件（同样在GUI之后）
 - [] Live2D 支持（v1 不做，GUI 之后）
 - [] 记忆系统和角色系统
@@ -93,7 +93,7 @@
 ### 仓库形态（2026-10-29 定）
 - **单仓多构建单元**：`src/aris/` 后端；`gui/` 桌面 / 前端（独立 `package.json` 与 lock）；`docs/` 文档站（VitePress，独立 lock）；`packaging/` 发行配方。GUI、文档站都不拆仓库。
 - **构建隔离**：普通 `uv sync` 不装 Node、不构建 GUI；仅发版时设 `ARIS_BUILD_GUI=1`，通过构建钩子把 `gui/dist` 打进发行物（参照 AstrBot 的 dashboard）。
-- **发行包**：包名 `ariscore`，两个命令 `arisp`（后端）/ `arisp-gui`（桌面壳，依赖后端）；
+- **发行包**：包名 `aris-project`，两个命令 `arisp`（后端）/ `arisp-gui`（桌面壳，依赖后端）；
   `arisp` 入口显式注入 `ARIS_DATA_DIR`。同仓、同 CI、共用 `__version__`。
   安装布局与首启流程见 `v1.0.0-prep.md` §4.15 与 `docs/process/v1/S13-packaging.md`。
 - **何时升级 workspace**：GUI 拆成多个 JS 包、或后端确需拆 `core` / `store` 时，改用 uv workspace / pnpm workspace，仍是单仓，不拆多仓。
@@ -209,7 +209,8 @@
 16. **mypy 范围**：v1 维持 `core` + `store`；扩不扩按长期收益评估，v1.x 再定。
 17. **tests 分组**：按模块分 `tests/<module>/`，`tests/support/` 留共享 mock，跨模块用例放
     `tests/integration/`；S14 前完成。
-18. **GUI 深链**：v1 只做 `ariscore://`（`.desktop` 注册 handler）；托盘 / 通知 / 自动更新 / 全局快捷键 v1.x。
+18. **GUI 深链**：v1 **不做**（`.desktop` 不注册 handler）；将来若做，scheme 用 `aris-project://`。
+    托盘 / 通知 / 自动更新 / 全局快捷键 v1.x。
 19. **`except Exception`**：继续用 ruff BLE001，降级日志固定带异常类型与上下文，不加自定义 lint。
 20. **CONTRIBUTING / SECURITY**：留 S14 发布前收尾，正文程度到时再定。
 

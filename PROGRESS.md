@@ -45,10 +45,11 @@
   其中 ebuild 含 GUI 源码构建（`dev-lang/go` + `go-module.eclass`）。主树已有 `dev-python/uv`，
   ebuild 不内置 uv；但该包默认 `python-downloads = "manual"`，首启 wrapper 必须先显式
   `uv python install 3.14` 再 `uv sync`。**不做真机 `emerge` 验证**（只做 `pkgcheck scan` 等静态校验，
-  发布说明标注未验证）；仓库只放单包 ebuild 目录 `packaging/gentoo/net-im/ariscore/`，不维护 overlay。
+  发布说明标注未验证）；仓库只放单包 ebuild 目录 `packaging/gentoo/sci-ml/aris-project/`，不维护 overlay。
 - **分发渠道（2026-11-13）**：GitHub Releases 是唯一真相源（源码 tarball + `.deb` + `.pkg.tar.zst` +
-  `SHA256SUMS`），**不自建二进制仓库**——Arch 走 AUR（`ariscore`，必要时补 `-bin`）、Gentoo 本地 overlay
-  起步并在 v1.x 提交 GURU、deb 直接下载（要 `apt upgrade` 时 v1.x 再上 OBS）、Flatpak 不做。
+  `SHA256SUMS`），**不自建二进制仓库**——**进源只走 AUR**（`aris-project`）；Gentoo 与 deb 都不进任何源
+  （ebuild 复制进本地 overlay，GURU 等第二个维护者 / 贡献者再提；deb 直接下载，要 `apt upgrade` 时
+  v1.x 再上 OBS）、Flatpak 不做。
 - **记忆系统对外定名 APEMS**（Aris Project Engram Memory System）：`Engram` 是名、`Memory System`
   是性质；代码仍叫 `memory`，界面导航仍叫「记忆」（2026-11-06 复核）。
 - **插件系统整体推迟 v1.1**，v1.0 不做也不预留接口；草案移到 `docs/process/v1.1-plugin-system.md`。
@@ -151,7 +152,8 @@
   另：`architecture-findings-2026-11-06.md` 里 6 条未决项已并入 `v1.0.0-prep.md` §7-32~37。
 - **打包与 CD 定案（2026-11-06）**：**M1（运行时 uv）确认**——包只装源码 + `uv.lock` + 启动器，
   解释器由 uv 在首启安装；**Arch 声明 `depends=('uv')`、deb 内置钉死的 uv**（Debian 无 uv 二进制包，
-  sid 只产 `python3-uv-build`）；命名定为 **包名 / app-id / 目录 `ariscore`**，命令仍 `arisp` / `arisp-gui`
+  sid 只产 `python3-uv-build`）；命名 **2026-11-13 改为包名 `aris-project`、app-id `dev.arisproject.aris`**，
+  安装目录 `/usr/share/aris-project/`、`/usr/lib/aris-project/`，命令仍 `arisp` / `arisp-gui`
   （`aris` 被 GNU Aris 占用）。首启下载 ≈ CPython 73 MB + 基础依赖（装好 129 MB）+ PG 约 40 MB，
   本地 embedding 按需再补 1.5 GB。详见 §4.15。
 - **Python 钉 3.14（2026-11-06）**：仓库根加 `.python-version` = `3.14`。原 `requires-python >=3.14`
