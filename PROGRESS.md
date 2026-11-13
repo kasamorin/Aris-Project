@@ -52,6 +52,10 @@
   `time_gap_minutes`（默认 10 分钟）时插一行 `[14:32]`。
   两周记是**总开关 + 子开关**：`fortnightly.enabled` 关掉即生成 / 注入 / 检索全关（旧记录保留），
   `inject.fortnightly` 关掉只是不注入。契约见 §4.4、§4.7。
+- **入站契约与会话执行（2026-11-13）**：平台层管协议 / 去重 / 白名单 / 门控 / 媒体，`chat` 管缓冲 /
+  串行队列 / 执行 / 历史，TUI / WebUI / autorun 共用 `chat.submit`（同步只入队、不调模型）。
+  队列上限 `queue_max_messages` 默认 200，超出丢最旧 + 160 字预览（≤50 条）合成 `[系统·排队溢出]`
+  系统块，不阻塞 `/sync`；`chat` 按职责拆文件（history 单列，S10 换实现不动链路）。契约见 §4.4。
 - **v1 打包范围加入 Gentoo ebuild（2026-11-13）**：v1.0 出 Arch 包 + deb + Gentoo ebuild（x86_64），
   其中 ebuild 含 GUI 源码构建（`dev-lang/go` + `go-module.eclass`）。主树已有 `dev-python/uv`，
   ebuild 不内置 uv；但该包默认 `python-downloads = "manual"`，首启 wrapper 必须先显式
