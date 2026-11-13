@@ -328,23 +328,23 @@
       结果以内容块回传、要原样带回下一轮；引擎池接的是上面两个独立端点。独立 Search 暂不支持图片搜索。
     - 落地：新增一个引擎（Key 复用 `DEEPSEEK_API_KEY`），默认是否进池 / 优先级 / Fetch 是否兼作「读链接」
       随实现定；整页正文要截断，别把整页塞进上下文。
-43. **DeepSeek 全家桶 API 适配器**：除 chat completions 外，把 DeepSeek 平台其余 API 纳入适配层
-    （`core/llm/`，复用现有 provider 抽象）。**已按官方 API Reference 核实（2026-11-13）**，范围是：
-    - 协议：Responses `POST /responses`、Anthropic Messages `POST /anthropic/v1/messages`、
-      FIM 补全 `POST /beta/completions`（Beta，仅非思考模式）。
-    - 管理：`GET /models`（含 context_window / max_output_tokens / 输入输出模态 / effort 档位 /
-      按协议的能力声明）、`GET /user/balance`（`is_available` + `balance_infos`，CNY / USD，
-      total / granted / topped_up）。
-    - 工具：Search、Fetch（见 #42）、OCR `POST /v1/tools/ocr`、TTS `POST /v1/tools/tts`
-      （另有同路径 WebSocket，`stella` 女声 / `tide` 男声，wav 或 24 kHz PCM）、
-      ASR `POST /v1/tools/asr`（整段上传，WAV / Ogg Opus）。
-    - Files：上传 / 列出 / 查询 / 删除。
-    - Chat 扩展字段（不是独立端点）：`deepseek_web_search`、`deepseek_read_url`、`safety_check`、
-      `title`、`user_id`；启用联网工具 / `safety_check=high` / `title` 时，temperature、top_p 等
-      由服务端接管，传了也被忽略。
-    - 分批：v1.0 只做**真正进链路**的——#42 独立 Search + `GET /models`（模型元数据正好补提供商管理的
-      fetch）+ 余额（提供商页 / CLI 可看）；TTS / ASR 留给语音阶段（TTS 可作 Edge TTS 的后备，
-      ASR 进 STT 候选）；Responses / Anthropic 兼容 / FIM / Files / OCR 先不做，因为不进当前链路。
-    - **待核对**：官方现行模型 ID 是 `deepseek-flash` 与 `deepseek-v4-pro`，本地种子 `providers.toml`
-      仍写 `deepseek-v4-flash`，实现前确认是改名还是兼容旧名。
-    - 动手前重新核一遍官方文档，不照本条写死字段。
+43. **DeepSeek 对话应用 API（官方「全家桶」）适配**：指官方「构建 Chatbot」那套能力
+    （`/zh-cn/guides/build_a_chatbot`），**不是**把所有 REST 端点接一遍。清单（2026-11-13 核实）：
+    联网搜索、深度思考搜索、文件输入（PDF / Word / PPT / 图片的文本提取或图文混排解析）、阅读链接、
+    模型内容安全、用户元信息标记、会话标题、朗读回答（TTS）、语音输入（ASR）。
+    - 三种协议都提供：Chat Completions `POST /chat/completions`、Responses `POST /responses`、
+      Anthropic Messages `POST /anthropic/v1/messages`；官方要求用 `deepseek-flash`。
+    - 联网工具是**服务端 tool**：请求里声明 `deepseek_web_search` / `deepseek_read_url`，结果以
+      `server_tool_use` + `web_search_tool_result` / `web_fetch_tool_result` 内容块返回，下一轮原样回传。
+      与 #42 的独立 Search / Fetch 是两条路，别混。
+    - 开了联网工具 / `safety_check=high` / `title` 后，temperature、top_p、stop、seed 等由服务端接管；
+      三种协议被忽略的参数清单不同，以官方表为准。
+    - 对 Aris 的映射：联网工具会绑死 DeepSeek 且要回传结果块，破坏自有引擎池抽象 → 仍走 #42；
+      文件输入涉及隐私与计费，知识库继续本地摄入；`safety_check` / `title` / 用户元信息个人项目用不上；
+      TTS / ASR 留语音批次评估（TTS 可作 Edge TTS 后备，ASR 进 STT 候选）。
+    - 结论：**v1.0 不接这套**；Chat Completions 本来就支持，另两种协议不必为它去适配。
+44. **DeepSeek 平台 API（不属于「全家桶」）**：`GET /models`、`GET /user/balance`、
+    FIM `POST /beta/completions`（Beta，仅非思考模式）、Files（上传 / 列出 / 查询 / 删除）、
+    OCR `POST /v1/tools/ocr`。v1.0 只会用到 `GET /models`（补提供商管理的 fetch）与余额展示；
+    FIM / Files / OCR 不进当前链路，留 v1.x。**待核对**：官方现行模型 ID 是 `deepseek-flash` /
+    `deepseek-v4-pro`，本地种子 `providers.toml` 仍写 `deepseek-v4-flash`，实现前确认是改名还是兼容旧名。
