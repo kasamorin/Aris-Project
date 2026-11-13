@@ -66,6 +66,11 @@
   指令表即视为「指定对模型说话」（等价 @），已知指令无权限则回「没有权限」并拦下。概率 / 决策判「说」时，
   决策环形缓冲（≤20 条）随命中消息一次性写入 `chat_messages`（按 `event_id` 去重），一直不命中的聊天永不落库。
   平台页「账号卡 → 设置 → 会话」块顶部放 `gate_defaults`、下面列已知聊天逐行改覆盖。契约见 §4.4、§4.12。
+- **S13 启动器与首启（2026-11-13）**：**不做版本戳**，启动器每次交给 `uv sync --frozen` 判定（幂等，
+  已同步约 30 ms），可选组记 `<data>/runtime/groups`；失败退出、不原子替换、不降级适配。
+  首启拆成启动器（Python + 依赖）与 `aris serve`（便携 PG）两段；进度用 `<data>/state/setup.json`
+  阶段提示 + GUI「正在准备运行环境」页，不假造百分比；产物命名 `aris-project_1.0.0_amd64.deb` /
+  `aris-project-1.0.0-1-x86_64.pkg.tar.zst` / `SHA256SUMS`。契约见 §4.15。
 - **v1 打包范围加入 Gentoo ebuild（2026-11-13）**：v1.0 出 Arch 包 + deb + Gentoo ebuild（x86_64），
   其中 ebuild 含 GUI 源码构建（`dev-lang/go` + `go-module.eclass`）。主树已有 `dev-python/uv`，
   ebuild 不内置 uv；但该包默认 `python-downloads = "manual"`，首启 wrapper 必须先显式
