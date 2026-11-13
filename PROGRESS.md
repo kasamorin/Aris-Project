@@ -34,6 +34,11 @@
   ② compact 摘要 = **滚动合并 + 要素化**（不写第一人称）、不设长度上限、不做模板校验、空输出算失败，
   摘要是一条带 `[记忆·对话摘要]` 的 `user` 消息。两次失败语义统一：全失败整轮失败；抽取幂等靠
   `extract_key` 覆盖重写。契约见 `docs/process/v1.0.0-prep.md` §4.21。
+- **消息平台首个实现改为 Matrix（2026-11-13）**：v1 只做 Matrix，OneBot 不做（NapCat 停更 / SnowLuma
+  转私有，协议端生态不稳定）。登录只封装 `matrix-nio` 已有能力——密码 + access token，不做 OAuth2 /
+  refresh token；`device_id` 由 homeserver 生成并持久化、不自动轮换；别名默认不拼完整 id、用户可手填
+  短别名；自动进房与 E2EE 默认关；适配器目录 `src/aris/platforms/adapters/`。契约见
+  `docs/process/v1.0.0-prep.md` §4.4。
 - **记忆系统对外定名 APEMS**（Aris Project Engram Memory System）：`Engram` 是名、`Memory System`
   是性质；代码仍叫 `memory`，界面导航仍叫「记忆」（2026-11-06 复核）。
 - **插件系统整体推迟 v1.1**，v1.0 不做也不预留接口；草案移到 `docs/process/v1.1-plugin-system.md`。
