@@ -56,6 +56,12 @@
   串行队列 / 执行 / 历史，TUI / WebUI / autorun 共用 `chat.submit`（同步只入队、不调模型）。
   队列上限 `queue_max_messages` 默认 200，超出丢最旧 + 160 字预览（≤50 条）合成 `[系统·排队溢出]`
   系统块，不阻塞 `/sync`；`chat` 按职责拆文件（history 单列，S10 换实现不动链路）。契约见 §4.4。
+- **上下文存储三层（2026-11-13）**：内存上下文（进程内组装，不落盘）/ PG（历史界面与首次写入的主）/
+  JSONL（按会话分文件、按大小切分，旁路留档与恢复备用，`aris chat reindex` 从它重建）。
+  PG 只两张表（`chat_sessions` + `chat_messages`，不做事件表 / fold）；compact 是 `kind=compact` 的
+  一条消息、自带 `covers_upto_seq`；JSONL **每轮结束写、先 JSONL 后 PG**。逐条原文只在 `chat_messages`，
+  记忆库存语义块 `memory_chunks`（自带正文 + `source_ref` 溯源），需要原文时走总线 `chat.history.read`。
+  契约见 §4.4。
 - **v1 打包范围加入 Gentoo ebuild（2026-11-13）**：v1.0 出 Arch 包 + deb + Gentoo ebuild（x86_64），
   其中 ebuild 含 GUI 源码构建（`dev-lang/go` + `go-module.eclass`）。主树已有 `dev-python/uv`，
   ebuild 不内置 uv；但该包默认 `python-downloads = "manual"`，首启 wrapper 必须先显式

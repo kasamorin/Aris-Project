@@ -167,7 +167,7 @@ style = "可以稍详细，允许代码块与列表"
 | `WEBUI.md` 会话模型（D2 修订版） | 补：小会话可**跨天**存在（冷却默认 1 天），"一段连续对话"属大会话 |
 | `ChatSession`（`cli.py:544` 每次新建） | 改为**取最新小会话续用**；无则新建 |
 | `memory_sessions` 表 | 补 `scene` / `channel` / `last_active_at`（冷却判定用） |
-| `memory_messages` 表 | 补 `source` / `speaker` / `kind` / `expects_reply` |
+| `memory_messages` 表 | 改为语义块 `memory_chunks`：逐条原文归 `chat_messages`，`source` / `speaker` / `kind` / `expects_reply` 也在那边（2026-11-13 定） |
 | D11 autorun | 补：主动任务类带 `kind=system` 进当前会话；内部维护类走系统场合 |
 | `aris doctor` | 补「迁移自检」项 |
 | `data/config/chat.toml` | 补 `channels.*`（场合风格）与 `session_cooldown_days` |

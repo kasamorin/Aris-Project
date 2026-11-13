@@ -412,7 +412,10 @@ character_notes (
 - **触发**：阈值与预留算法按 compact 契约（两档触发 + 输出预留，具体数值在 `compact.toml`）；本节守语义：**实际阈值 = 配置阈值 − 预留输出空间**，且不得等于上下文上限。
 - **上下文大小三手**：provider `usage` 实测（流式开 `include_usage`）→ 调用前 tokenizer/字符预估 + 预留输出 → 被拒超长按 85/70/50/35% 逐级缩。
 - **输入只有真实历史**：system prompt 与注入的记忆块都不参与压缩。
-- **产物**：摘要 + 保留尾部原文（默认 **6 条**，可配 0~20；按**对话消息**计，`history` 只含 system / user / assistant，工具中间轮不进 history）；`kind=compact` 落库、不向量化。
+- **产物**：摘要 + 保留尾部原文（默认 **6 条**，可配 0~20；按**对话消息**计，`history` 只含 system / user / assistant，工具中间轮不进 history）。
+  摘要写成 `chat_messages` 里一条 `kind=compact` 的行（自带 `covers_upto_seq`，见 `v1.0.0-prep` §4.4），
+  同时作为 `memory_entries.kind=compact` 落记忆库供检索、不向量化——两处同名不同物：前者是会话历史里的摘要节点，
+  后者是记忆库的提炼物。
 - **重组顺序**：system + 记忆块 +〔摘要 + compact 前最后 N 条原文〕+ 后续消息；摘要是**一条 `user` 消息**，开头 `[记忆·对话摘要]`，不另加 assistant 确认（同角色连续不是协议限制，见 `API-CALL.md` §1.2；概率回复下 `user` 连发本就是常态）。
 - **摘要结构**：**要素化，不写第一人称叙述**（§9.2「叙事给人看，要素给模型用」）：五节 = §9.2 的统一要素，条目式，用名字 + 绝对时间，不写「我 / 你 / 用户 / 对方」，没内容写「（无）」；不提压缩过程、不写文件路径。具体提示词随实现进代码常量，不在文档里维护。
 - **不设长度上限**：靠写法约束（短句、单行条目、不写大段、不嵌套、不写前言），不做事后截断、不做模板校验；撞输出上限或缺小节都接受并记 warning，**只有空输出算失败**。
@@ -442,12 +445,14 @@ character_notes (
 - 抽取可参考「未总结轮次阈值（默认 10）+ 跨天/空闲切窗」的触发思路（事件驱动，不依赖调度器）。
 - **一次抽取任务、只看当前上下文（2026-11-10 定）**：输入 = 本次 compact 同一段（history 去掉尾部 N 条），
   **不从 DB 回读原文、不设水位线、不分块**（工具查实体表不算输入回读）；上次摘要明确围栏为
-  「前情，不要重复抽取」；尾部 N 条下一轮再抽。
-  **实现走标准 `AgentLoop`，不是 one-shot**：`tool_calls` 后必须回传 `tool` 结果（DeepSeek 还要带
+  「前情，不要重复抽取」；尾部 N 条下一轮再抽。**实现走标准 `AgentLoop`，不是 one-shot**：`tool_calls` 后必须回传 `tool` 结果（DeepSeek 还要带
   `reasoning_content`），工具执行后必然再请求一次收尾；维护工具 = `memory_find_person` + `memory_write_events`
   （批量缓冲），`max_rounds` 默认 4，结束文本丢弃，缓冲在循环结束后一个事务提交。
   失败走正常 LLM 重试 / fallback，**全失败就整轮失败**（不 compact、不回复），原文保留、下一轮重试；
   单次事件条数上限默认 60（可配）。
+- **语义块写在同一时机（2026-11-13 定）**：`memory_chunks` 的切块与向量化跟着 compact / 兜底抽取走，
+  不另起调度；切块是**存储侧动作**，抽取仍看整段输入（因此与上一条的「不分块」不冲突）。
+  存量回填由记忆侧一次性任务经 `chat.history.read` 读原文补齐（chat 缺失则记 warning 跳过）。
 - **v1 不开放模型主动写事件、也不开放新增事实**：清单见 §7.2；事件与新事实只由抽取产生，
   既有事实可由模型更正（`memory_update_fact`）。
 
@@ -639,12 +644,18 @@ memory_identities (                    -- 平台身份 → 实体；当前发言
   `memory_hits (cid, entry_id, hit_on)`。
 - **没有 `relations` 表**：关系 = 对象是实体的 fact（§5.1）。
 - **事件的参与者只存 `memory_event_entities` 一处**：`memory_entries` 不再冗余 `participants` 列，避免实体合并后两处漂移。
-- 原文：`memory_sessions` / `memory_messages` / `memory_conversations` 三表；`memory_conversations` 记大会话（时间聚类结果），供时间轴查看；原文**全量保留**、可归档。
-- `memory_messages` 至少带 `speaker`（平台 `user_id` 或 `aris` / `system`）/ `kind`（human | aris | system）/
-  `source` / `expects_reply`，与 `PORTABILITY-AND-SINGLE-SESSION.md` 一致；**当前发言人只从 `speaker` 来**，
-  经 `memory_identities` 解析成实体。
+- **逐条原文不在记忆库（2026-11-13 定）**：会话历史归 `chat` 的 `chat_sessions` / `chat_messages`
+  （见 `docs/process/v1.0.0-prep.md` §4.4），记忆库不再存逐条消息，也不再持有 `speaker` / `kind` /
+  `source` / `expects_reply` 这些逐条字段。
+- **`memory_chunks`（原 `memory_messages`，2026-11-13 改名并改定位）**：语义块表，带 `source_ref`
+  （`{kind: "chat_message", id}`，**只做溯源、不反查**）、块正文与 `embedding` / `embedding_model`；
+  **按语义边界切块**：最小单位 = 消息、不切半条；话轮（user→assistant→tool→tool result）不拆；
+  「30 条」或「~4k token」只是切块信号，触发后回退最近安全边界；超长单条单独成块。
+  块**自带正文**，保证 `memory_search` 的 `raw` 通路与 lite 库自包含。
+- `memory_sessions` / `memory_conversations` 保留：记忆侧的会话索引与时间聚类（大会话可重算），**不存正文**。
+- **「原文全量保留」的新口径**：全量原文本体在 `chat_messages` 与 JSONL 留档；记忆库保留的是切块副本，
+  删库 / 换库不影响对话历史。记忆侧需要原文时走总线服务 `chat.history.read`（chat 缺失就记 warning 跳过）。
 - `memory_hits` 保留 90 天（可配），超出可清——晋升窗口只有 30 天，历史命中只服务统计。
-- 原文块表带 `embedding_model` 与分块 id；**按语义边界切块**：最小单位 = 消息、不切半条；话轮（user→assistant→tool→tool result）不拆；「30 条」或「~4k token」只是切块信号，触发后回退最近安全边界；超长单条单独成块。
 - 索引：`(cid, preset, kind, occurred_from DESC)`、活跃 partial、HNSW 只对非空 embedding。
 - **迁移逐库执行（2026-11-07 定）**：全局 `store_schema_migrations` 按 `(owner, version)` 唯一，表达不了
   「A 库升到 v3、B 库还停在 v1」；记忆库因此**不用全局跟踪表**，改用库内 `memory_migrations`。

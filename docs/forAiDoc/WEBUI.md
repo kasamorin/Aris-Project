@@ -294,7 +294,7 @@ session_days = 7
 
 | 概念 | 定义 | 边界控制 | 存储对应 |
 |---|---|---|---|
-| **小会话** | 一次 LLM 调用的上下文（system + 消息序列），**先天属性** | 上下文接近模型上限时 **compact**（摘要替换旧消息，**同一 `session_id` 继续**）；`/new` 仅 TUI 调试手段（手动开新 id、干净重来） | `memory_sessions` + `memory_messages`（PG） |
+| **小会话** | 一次 LLM 调用的上下文（system + 消息序列），**先天属性** | 上下文接近模型上限时 **compact**（摘要替换旧消息，**同一 `session_id` 继续**）；`/new` 仅 TUI 调试手段（手动开新 id、干净重来） | `chat_sessions` + `chat_messages`（PG，2026-11-13 定） |
 | **大会话** | 时间上连续的一批消息，「组内紧凑、组间有断点」 | **按消息时间戳做时间聚类**（见下），与 session 边界无关 | `memory_conversations`（物化，可重算） |
 
 关键点：
@@ -311,8 +311,9 @@ session_days = 7
   $d^2_{12}=\frac{m(n-m)}{n}(\bar x_2-\bar x_1)^2$ 在工程上等价于**取最大消息间隔处切分**；
   数据点 = **消息时间戳**；递归切到子段"足够连续"为止（**不切太细**——连续聊几个小时算同一段）
 - **大会话是记忆整理的触发单元**（"这段聊完了"），不是小会话
-- **会话历史落 PG**（2026-09-28 定案）：`memory_sessions`（含 `cid` / `summary`）/
-  `memory_messages` / `memory_conversations`；`chat.log` 只记请求级人类可读日志
+- **会话历史落 PG**（2026-09-28 定案，2026-11-13 改表归属）：`chat_sessions`（含 `cid` / 活跃时间 /
+  计数）/ `chat_messages`（含 `kind=compact` 的摘要行）/ `memory_conversations`（大会话，记忆侧）；
+  `chat.log` 只记请求级人类可读日志
 - 两层边界都是自动的——用户（语音交互）完全不需要关心会话管理
 
 ## 后续讨论（未定事项）
