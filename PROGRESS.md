@@ -41,6 +41,11 @@
   短别名；自动进房与 E2EE 默认关；适配器目录 `src/aris/platforms/adapters/`。离线回放默认
   60 分钟 / 每房间 50 条（可配），入站图片上限默认 20 MB（可配，0 = 不限）。契约见
   `docs/process/v1.0.0-prep.md` §4.4。
+- **入站缓冲合并（2026-11-13）**：流式期间的新输入进待处理缓冲，静默 `batch_window`（默认 1.5 s）或达到
+  `batch_max_messages`（默认 8 条）/ `batch_max_tokens`（默认 4000）封批，等当前轮结束按 FIFO 处理；
+  `buffer_scope` 默认 `per_chat`（每来源一份，回复目标唯一），可切 `session`（跨来源合批，默认回最后来源，
+  其他来源靠 `send_message` 或不回）；满了只封批，不中止输出、不丢消息。提示层来源标签按连续段打、
+  不逐条重复，结构化来源仍逐条入库。契约见 §4.4。
 - **v1 打包范围加入 Gentoo ebuild（2026-11-13）**：v1.0 出 Arch 包 + deb + Gentoo ebuild（x86_64），
   其中 ebuild 含 GUI 源码构建（`dev-lang/go` + `go-module.eclass`）。主树已有 `dev-python/uv`，
   ebuild 不内置 uv；但该包默认 `python-downloads = "manual"`，首启 wrapper 必须先显式

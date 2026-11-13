@@ -28,7 +28,7 @@
 - [] 插件系统（参考Astrbot,由于我们使用cmcb但别人不一定，而且不一定所有人都愿意用cmcb,因此需要提供兼容层）→ **v1.1**（v1.0 不做，草案在 `docs/process/v1.1-plugin-system.md`）
 - [] autorun自动任务
 - [] 消息平台连接（v1 做 Matrix；OneBot 暂不做）
-- [] 多模态、全模态模型支持
+- [] 多模态、全模态模型支持（v1.x 的「多模态全双工」见本文件第 30 条）
 - [] 决策模型支持（自主回复 / 自主操作门控；不做主模型兜底，密集消息攒批）
 - [] v1.x：借鉴 SurfCore（Mieksido/surfcore，v1.0 之后到 v2 之前，不进 v1.0 核心决策）
 - [] v1.x：主管理员账户（人格化管理员提示注入）
@@ -191,7 +191,8 @@
    Forced actions），让外部程序 / 游戏声明动作、Aris 返回动作名 + JSON。
 9. **选择性回答 + 非逐条请求**：选择性回答已有设计（§4.4 门控档位
    `only_trigger` / `probability` / `decision_batch` / `always`）；「非逐条请求」**已定**：
-   平台侧按 `batch_window`（默认 1.5 s）/ `batch_max`（默认 8 条）合并成一次主模型请求，
+   入站待处理缓冲按 `chat.toml` 的 `batch_window`（默认 1.5 s）/ `batch_max_messages`（默认 8 条）/
+   `batch_max_tokens`（默认 4000）合批，`buffer_scope` 默认 `per_chat`、可切 `session`，
    不依赖决策模型开启。
 10. **日常 ftf 对话**：**v1.x**。参考 AstrBot 插件或 AIRI 的做法；与语音链路耦合。
 11. **游戏接入**：**v1.x 以后**。可参考 neuro-sdk 的类型化 action 协议。
@@ -250,8 +251,9 @@
     - **不做 README 头图**：头图要长方形、更简约，另做一张；
     - **favicon + 应用图标集**（`icon-{16..512}.png` / `favicon.ico` / `.desktop` 的 `Icon=`）随 S13
       品牌资源同批做；派生图平铺进 `src/aris/webui/static/`，避免改 `pyproject.toml` 的 package-data。
-30. **全双工模型支持（v1.x）**：v1.0 的语音链路按「STT → LLM → TTS」半双工做；v1.x 再评估
-    全双工（边说边听、可打断）的模型接入与调度。
+30. **多模态全双工模型支持（v1.x）**：v1.0 的语音链路按「STT → LLM → TTS」半双工做；v1.x 再评估
+    全双工（边说边听、可打断）的多模态模型接入与调度——模型直接收发音频内容块，边说边听，
+    不再经过独立 STT / TTS 两段。
 31. **v1.x：修复阈值总结导致的对话不连贯**：上下文到阈值时 compact 把旧历史换成摘要，语感会断；
     v1.0 接受这个代价，v1.x 再找更好的方案（例如滚动摘要、分层摘要、只压工具输出等）。
 32. **行为文档（v1.x，人类向）**：每个模块「做什么、暴露什么服务 / 事件、何时触发、有什么副作用」，
