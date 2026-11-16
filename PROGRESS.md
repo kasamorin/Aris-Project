@@ -106,7 +106,8 @@
   chat 用 llama.cpp worker，双工用 vLLM-Omni 隔离 Python 3.13 worker（`DuplexOmni`，不起
   `vllm serve`），embedding 一并大改且模型可由用户更换、Aris 只给推荐。本地双工按模型能力声明，
   vLLM-Omni 为音频优先（纯文本输入不支持）。本机无可用 GPU，本地双工只能 mock / 契约测试，
-  端到端需 GPU 机器。细节待统一商议（§7-61），页面由开发者设计。契约见 §4.29。
+  端到端需 GPU 机器。**验收口径：先实现 + mock / 契约测试，发布说明标注「未真机验证」，
+  端到端等有 GPU 的机器 / 用户反馈再补**。细节待统一商议（§7-61），页面由开发者设计。契约见 §4.29。
 - **v1 打包范围加入 Gentoo ebuild（2026-11-13）**：v1.0 出 Arch 包 + deb + Gentoo ebuild（x86_64），
   其中 ebuild 含 GUI 源码构建（`dev-lang/go` + `go-module.eclass`）。主树已有 `dev-python/uv`，
   ebuild 不内置 uv；但该包默认 `python-downloads = "manual"`，首启 wrapper 必须先显式
