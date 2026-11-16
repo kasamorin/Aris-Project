@@ -96,6 +96,10 @@
   ② `/#` 命令集加 `/#model`、去掉 `/#provider`（每行显示 `提供商/模型id`），TUI `/new` 服从平台语义
   （触发 compact，不设 `/compact`）；③ 报错文案三态（`off` / `raw` / `custom`，默认 `custom` + `help`）；
   ④ TruE 命名放弃。契约见 §4.4、§4.7、§4.27 ⑬。
+- **双工会话进 v1.0（2026-11-16 范围变更）**：双工是**独立品类**（连续输入 + overlap 决策 + backchannel），
+  不是给 chat 模型套壳；v1.0 落地双工会话本体（文本为主、按模型能力带音频），独立 STT / TTS 链路留 v1.x。
+  协议适配层 v1 做 OpenAI Live（GPT-Live）/ OpenAI Realtime / vLLM-Omni（本地 in-process），
+  Gemini Live 留 v1.x；架构为**共享内核、只换调度层**。契约见 §4.28，待定项见 `todolist.md` #30。
 - **v1 打包范围加入 Gentoo ebuild（2026-11-13）**：v1.0 出 Arch 包 + deb + Gentoo ebuild（x86_64），
   其中 ebuild 含 GUI 源码构建（`dev-lang/go` + `go-module.eclass`）。主树已有 `dev-python/uv`，
   ebuild 不内置 uv；但该包默认 `python-downloads = "manual"`，首启 wrapper 必须先显式
