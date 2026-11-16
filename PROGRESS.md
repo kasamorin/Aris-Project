@@ -92,6 +92,10 @@
 - **实现细则第二批（2026-11-13）**：前端三态（加载 / 空 / 错，Jinja include + 服务端错误映射）、
   长任务沿用 `webui/tasks`（内存、不持久化、备份用不确定进度）、轮次 PG 写失败「重试一次后作废本轮」、
   写库只在 chat 队列 + 记忆侧按 cid 加锁、SSE 断线插分隔不补历史。契约见 §4.27 ⑧–⑫。
+- **四件插议（2026-11-16）**：① 记忆对外名 APEMS → **AMS**（`Aris Memorate System`，代码仍叫 `memory`）；
+  ② `/#` 命令集加 `/#model`、去掉 `/#provider`（每行显示 `提供商/模型id`），TUI `/new` 服从平台语义
+  （触发 compact，不设 `/compact`）；③ 报错文案三态（`off` / `raw` / `custom`，默认 `custom` + `help`）；
+  ④ TruE 命名放弃。契约见 §4.4、§4.7、§4.27 ⑬。
 - **v1 打包范围加入 Gentoo ebuild（2026-11-13）**：v1.0 出 Arch 包 + deb + Gentoo ebuild（x86_64），
   其中 ebuild 含 GUI 源码构建（`dev-lang/go` + `go-module.eclass`）。主树已有 `dev-python/uv`，
   ebuild 不内置 uv；但该包默认 `python-downloads = "manual"`，首启 wrapper 必须先显式
@@ -101,8 +105,8 @@
   `SHA256SUMS`），**不自建二进制仓库**——**进源只走 AUR**（`aris-project`）；Gentoo 与 deb 都不进任何源
   （ebuild 复制进本地 overlay，GURU 等第二个维护者 / 贡献者再提；deb 直接下载，要 `apt upgrade` 时
   v1.x 再上 OBS）、Flatpak 不做。
-- **记忆系统对外定名 APEMS**（Aris Project Engram Memory System）：`Engram` 是名、`Memory System`
-  是性质；代码仍叫 `memory`，界面导航仍叫「记忆」（2026-11-06 复核）。
+- **记忆系统对外定名 AMS**（Aris Memorate System）：`Aris` 归属、`Memorate` 是名、`System` 是品类；
+  代码仍叫 `memory`，界面导航仍叫「记忆」（2026-11-16 由 APEMS 改名）。
 - **插件系统整体推迟 v1.1**，v1.0 不做也不预留接口；草案移到 `docs/process/v1.1-plugin-system.md`。
 - **决策模型去掉 `main_llm`**：只保留 `off | dedicated`，失败降级到概率 / 规则；消息密集时先攒批再判。
 - **记忆**：重要性由抽取时模型标注（`importance ≥ 0.8` → 「重要」预设，weight 2048、直接常驻）；
@@ -250,7 +254,7 @@
 | `character/` | 完成：角色载体 `data/characters/<cid>/` |
 | `serve/` | 完成：`aris serve` 一条命令起全套；唯一组装根 |
 | `webui/` | 完成：鉴权 / 仪表盘 / 审计 / 提供商 / 技能 / 配置 / 日志 / 知识库；配置页体验待重做 |
-| `memory/` | v1 P4 开工（对外名 **APEMS**）；契约已按 2026-11-03 决策更新（见 `docs/forAiDoc/MEMORY.md`） |
+| `memory/` | v1 P4 开工（对外名 **AMS**）；契约已按 2026-11-03 决策更新（见 `docs/forAiDoc/MEMORY.md`） |
 | `voice/` | 占位：STT / TTS 选型未定 |
 | `autorun/` | 方向已定，暂不实现（只留设计） |
 

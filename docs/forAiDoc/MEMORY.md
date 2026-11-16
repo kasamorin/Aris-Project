@@ -6,10 +6,9 @@
 
 ## 0. 定位
 
-- **对外名称 APEMS**（`Aris Project Engram Memory System`，2026-11-03 定）：
-  **`Engram` 是名、`Memory System` 是性质**，不是同义反复；全称只在本节展开，其余地方直接写 APEMS。
-  **缩写不可再简**：`AP`（归属）+ `E`（名）+ `MS`（品类）缺一段就念不出来（`APMS` / `EMS` 只能
-  逐字母拼），不许为了简短去掉任何一段。
+- **对外名称 AMS**（`Aris Memorate System`，2026-11-03 定名、2026-11-16 改名）：
+  **三段各有职责**——`Aris` 是归属、`Memorate` 是名、`System` 是品类，不是同义反复；
+  全称只在本节展开，其余地方直接写 AMS。
   只用于对外文案（文档、发布说明、关于页）；代码、CLI、配置与**界面导航**仍叫 `memory` /「记忆」——
   包名 `aris.memory`、服务名 `memory.*`、命令 `aris memory`、配置 `memory.toml` 都不改。
 - **engram（记忆痕迹）**：系统要留的是「经历在角色身上留下的痕迹」，不是可检索的档案柜。
