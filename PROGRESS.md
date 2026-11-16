@@ -98,8 +98,15 @@
   ④ TruE 命名放弃。契约见 §4.4、§4.7、§4.27 ⑬。
 - **双工会话进 v1.0（2026-11-16 范围变更）**：双工是**独立品类**（连续输入 + overlap 决策 + backchannel），
   不是给 chat 模型套壳；v1.0 落地双工会话本体（文本为主、按模型能力带音频），独立 STT / TTS 链路留 v1.x。
-  协议适配层 v1 做 OpenAI Live（GPT-Live）/ OpenAI Realtime / vLLM-Omni（本地 in-process），
+  协议适配层 v1 做 OpenAI Live（GPT-Live）/ OpenAI Realtime / vLLM-Omni（本地隔离运行时），
   Gemini Live 留 v1.x；架构为**共享内核、只换调度层**。契约见 §4.28，待定项见 `todolist.md` #30。
+- **本地模型体系（2026-11-16）**：本地模型 = Aris 自己管理、经 CMCB 直连、不走 HTTP 的模型；
+  LM Studio / Ollama 即使同机也属外部提供商。chat / 双工统一走**受管子进程 + IPC**
+  （Unix socket + msgpack，不开 TCP），主进程保持 Python 3.14；
+  chat 用 llama.cpp worker，双工用 vLLM-Omni 隔离 Python 3.13 worker（`DuplexOmni`，不起
+  `vllm serve`），embedding 一并大改且模型可由用户更换、Aris 只给推荐。本地双工按模型能力声明，
+  vLLM-Omni 为音频优先（纯文本输入不支持）。本机无可用 GPU，本地双工只能 mock / 契约测试，
+  端到端需 GPU 机器。细节待统一商议（§7-61），页面由开发者设计。契约见 §4.29。
 - **v1 打包范围加入 Gentoo ebuild（2026-11-13）**：v1.0 出 Arch 包 + deb + Gentoo ebuild（x86_64），
   其中 ebuild 含 GUI 源码构建（`dev-lang/go` + `go-module.eclass`）。主树已有 `dev-python/uv`，
   ebuild 不内置 uv；但该包默认 `python-downloads = "manual"`，首启 wrapper 必须先显式
@@ -259,6 +266,7 @@
 | `serve/` | 完成：`aris serve` 一条命令起全套；唯一组装根 |
 | `webui/` | 完成：鉴权 / 仪表盘 / 审计 / 提供商 / 技能 / 配置 / 日志 / 知识库；配置页体验待重做 |
 | `memory/` | v1 P4 开工（对外名 **AMS**）；契约已按 2026-11-03 决策更新（见 `docs/forAiDoc/MEMORY.md`） |
+| 本地模型体系（待建） | 方案已定：受管子进程 + IPC；chat llama.cpp / 双工 vLLM-Omni 隔离 3.13 / embedding 大改；细节见 §7-61 |
 | `voice/` | 占位：STT / TTS 选型未定 |
 | `autorun/` | 方向已定，暂不实现（只留设计） |
 
