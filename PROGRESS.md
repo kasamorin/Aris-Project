@@ -112,6 +112,10 @@
   vLLM-Omni 为音频优先（纯文本输入不支持）。本机无可用 GPU，本地双工只能 mock / 契约测试，
   端到端需 GPU 机器。**验收口径：先实现 + mock / 契约测试，发布说明标注「未真机验证」，
   端到端等有 GPU 的机器 / 用户反馈再补**。细节待统一商议（§7-61），页面由开发者设计。契约见 §4.29。
+- **本地双工模型事实（2026-11-17 核实）**：MiniCPM-o 4.5 真双工（`model_native_duplex`）但无工具；
+  Qwen3-Omni 有工具但非原生双工（vLLM-Omni deploy 明确写 concurrent input / interruptible VAD turns）；
+  Nemotron VoiceChat 宣称真双工 + 工具但集成待验证；MiniCPM-duplex 是 2024 文本研究原型。
+  Aris 不为每个角色单独微调模型，同一模型多 session + per-session instructions / voice。
 - **WebChat 群聊暂缓（2026-11-17）**：WebChat 群聊暂不做、也暂不设计；消息平台群聊本来就不在本次范围。
 - **v1 打包范围加入 Gentoo ebuild（2026-11-13）**：v1.0 出 Arch 包 + deb + Gentoo ebuild（x86_64），
   其中 ebuild 含 GUI 源码构建（`dev-lang/go` + `go-module.eclass`）。主树已有 `dev-python/uv`，
