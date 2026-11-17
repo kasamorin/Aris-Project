@@ -105,6 +105,7 @@
   （Unix socket + msgpack，不开 TCP），主进程保持 Python 3.14；
   chat 用 llama.cpp worker，双工用 vLLM-Omni 隔离 Python 3.13 worker（`DuplexOmni`，不起
   `vllm serve`），embedding 一并大改且模型可由用户更换、Aris 只给推荐。
+  **普通 chat 模型同样允许用户添加**；模型目录面向 chat / duplex / embedding，不是双工专用。
   **同一个模型同时只运行一个实例**；多角色 / 多会话复用该实例，能否并行按模型能力协商
   （如 vLLM-Omni 的 `supports_multi_session`）；**v1 不对单会话双工模型排队**，不支持就
   `model_busy`。接入方式为标准接入流 + 专用管理面（`kind = "local"` 的 provider + 独立本地管理器）。

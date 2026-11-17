@@ -384,4 +384,5 @@
     模型选型：**MiniCPM-o 4.5 为推荐 / 已适配**（上游验证真双工、无工具、16 会话；本机未真机跑）；允许用户添加其他模型，
     **Gander / Realtime-Venus 留作备选**（需各自 backend，未验证）。Qwen3-Omni 有工具但非原生双工；
     Nemotron 真双工 + 工具待验证；MiniCPM-duplex 是 2024 文本研究原型。
+    **普通 chat 模型同样允许用户添加**；模型目录面向 chat / duplex / embedding，不是双工专用。
     本地模型接入流已定：标准接入流 + 专用管理面（§4.29）。
