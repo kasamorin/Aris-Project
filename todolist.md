@@ -30,6 +30,7 @@
 - [] 消息平台连接（v1 做 Matrix；OneBot 暂不做）
 - [] 多模态、全模态模型支持（v1.x 的「多模态全双工」见本文件第 30 条）
 - [] 本地模型支持与本地模型页（v1.0；本地模型 = Aris 管理、CMCB 直连、不走 HTTP；chat / 双工受管子进程 + IPC；chat llama.cpp / 双工 vLLM-Omni 隔离 3.13 / embedding 大改且模型可换；细节待统一商议，见 `docs/process/v1.0.0-prep.md` §4.29 / §7-61；**界面由开发者设计**）
+- [] embedding 推荐默认切换为 `granite-embedding-97m-multilingual-r2`（384 维；Bekko a25m 不再推荐；311M@384 质量档；需实测 CPU 延迟 / ONNX vs OpenVINO / 重索引；契约见 §4.6 / §4.29）
 - [] 双工协议适配层（v1.0：OpenAI Live / OpenAI Realtime / vLLM-Omni 本地隔离运行时；Gemini Live 留 v1.x；契约见 `docs/process/v1.0.0-prep.md` §4.28）
 - [] 决策模型支持（自主回复 / 自主操作门控；不做主模型兜底，密集消息攒批）
 - [] v1.x：借鉴 SurfCore（Mieksido/surfcore，v1.0 之后到 v2 之前，不进 v1.0 核心决策）

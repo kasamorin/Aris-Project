@@ -119,6 +119,10 @@
   Qwen3-Omni 有工具但非原生双工（vLLM-Omni deploy 明确写 concurrent input / interruptible VAD turns）；
   Nemotron VoiceChat 宣称真双工 + 工具但集成待验证；MiniCPM-duplex 是 2024 文本研究原型。
   Aris 不为每个角色单独微调模型，同一模型多 session + per-session instructions / voice。
+- **embedding 推荐默认改 Granite R2（2026-11-17）**：`granite-embedding-97m-multilingual-r2`
+  （97M / 384 维 / 32K / Apache-2.0）作为推荐默认；**Bekko a25m 不再推荐**；
+  `granite-embedding-311m-multilingual-r2` 的 Matryoshka@384 作为质量档。
+  代码仍用 Bekko，切换随 embedding 大改施工；需实测 CPU 延迟 / ONNX vs OpenVINO / 重索引。
 - **WebChat 群聊暂缓（2026-11-17）**：WebChat 群聊暂不做、也暂不设计；消息平台群聊本来就不在本次范围。
 - **v1 打包范围加入 Gentoo ebuild（2026-11-13）**：v1.0 出 Arch 包 + deb + Gentoo ebuild（x86_64），
   其中 ebuild 含 GUI 源码构建（`dev-lang/go` + `go-module.eclass`）。主树已有 `dev-python/uv`，
