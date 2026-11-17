@@ -125,6 +125,10 @@
   `granite-embedding-311m-multilingual-r2` 的 Matryoshka@384 作为质量档。
   **旧 embedding 库直接删除、不做迁移**（目前只有测试数据）；迁移方法保留，正式数据 / 换机时再用。
   代码仍用 Bekko，切换随 embedding 大改施工；需实测 CPU 延迟 / ONNX vs OpenVINO / 重索引。
+- **本地模型体系模块名定为 `inference`（2026-11-17）**：独立模块 `src/aris/inference/`（前缀
+  `inference.`），不扩进 `store`；叶子基础设施、只依赖 `infra` / `core`，`store` 经总线调它取向量。
+  术语三层：本地模型 / 推理后端 / 运行时；代码里不再拿 `runtime` / `engine` / `serving` 当模块名。
+  embedding 执行位置按 backend 能力 + 配置选择，不写死。
 - **WebChat 群聊暂缓（2026-11-17）**：WebChat 群聊暂不做、也暂不设计；消息平台群聊本来就不在本次范围。
 - **v1 打包范围加入 Gentoo ebuild（2026-11-13）**：v1.0 出 Arch 包 + deb + Gentoo ebuild（x86_64），
   其中 ebuild 含 GUI 源码构建（`dev-lang/go` + `go-module.eclass`）。主树已有 `dev-python/uv`，
