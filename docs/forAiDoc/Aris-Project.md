@@ -2,7 +2,7 @@
 
 ## 简述
 
-Aris Project 是一个基于大语言模型、类似 Neuro-sama 的**赛博生命体**。
+Aris Project 是一个基于大语言模型、类似 Neuro-sama 的**赛博生命**。
 
 项目始于 2026-07，在 AI 辅助下开发。
 
