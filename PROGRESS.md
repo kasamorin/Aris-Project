@@ -104,7 +104,9 @@
   LM Studio / Ollama 即使同机也属外部提供商。chat / 双工统一走**受管子进程 + IPC**
   （Unix socket + msgpack，不开 TCP），主进程保持 Python 3.14；
   chat 用 llama.cpp worker，双工用 vLLM-Omni 隔离 Python 3.13 worker（`DuplexOmni`，不起
-  `vllm serve`），embedding 一并大改且模型可由用户更换、Aris 只给推荐。本地双工按模型能力声明，
+  `vllm serve`），embedding 一并大改且模型可由用户更换、Aris 只给推荐。
+  **同一个模型同时只运行一个实例**；多角色 / 多会话复用该实例，能否并行按模型能力协商
+  （如 vLLM-Omni 的 `supports_multi_session`），不支持则排队。本地双工按模型能力声明，
   vLLM-Omni 为音频优先（纯文本输入不支持）。本机无可用 GPU，本地双工只能 mock / 契约测试，
   端到端需 GPU 机器。**验收口径：先实现 + mock / 契约测试，发布说明标注「未真机验证」，
   端到端等有 GPU 的机器 / 用户反馈再补**。细节待统一商议（§7-61），页面由开发者设计。契约见 §4.29。
