@@ -163,7 +163,10 @@
 - **运行时供给（2026-11-17 定）**：`data/runtime/<backend>/<variant>/<version>/venv` + `current` 指针；
   `uv pip install --extra-index-url`；**蓝绿更新不原地升级**；校验只做存在 / 可执行 / 可导入；
   GPU 探测只作闸门、不落盘；离线模式禁自动下载。
-- **本地推理施工文档已写（2026-11-17）**：`docs/process/v1/Sx-local-inference.md`——协议帧与消息族、
+- **S5 定名与收尾（2026-11-18）**：本地推理并入 **S5**，文档改名 `docs/process/v1/S5-local-inference.md`；
+  下载默认走 **ModelScope**（可切 HF）；mypy v1.0 不扩；错误文案、设置弹窗区块入档；
+  `playback_lag_limit_ms` 改属 `duplex.toml`（双工走云端，不再归 inference）。
+- **本地推理施工文档已写（2026-11-17）**：`docs/process/v1/S5-local-inference.md`——协议帧与消息族、
   运行时安装 / 蓝绿切换、调度状态机与预算、双工事件映射与时序、DoD 与 T1–T9 任务拆解；
   批次编号待定，定了改名。prep 只留决策与指针。
 - **embedding 收尾（2026-11-17 定）**：provider 分 local（worker）/ remote（OpenAI 兼容）；
