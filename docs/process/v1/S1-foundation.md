@@ -28,7 +28,7 @@
 
 ## 3. 任务
 
-### T1 配置项元数据（Lead）
+### T1 配置项元数据
 
 **新增** `src/aris/infra/config_items.py`：
 
@@ -129,7 +129,7 @@ vim / nano / sed 直接改 TOML，不再加全量列表命令。
 - import 可关模块（`aris.store` / `knowledge` / `mcp` / `webui` / `character` / `behavior`）后，
   `services()` 不出现这些模块的服务，`knowledge` 迁移未登记（`tests/test_import_isolation.py`）。
 
-### T2 i18n 基建（Lead）
+### T2 i18n 基建
 
 - `src/aris/i18n/__init__.py`：`t(key, **params)`、`set_locale()` / `current_locale()` /
   `detect_locale()`、按命名空间懒加载、缺失 key 回退 `zh-CN` 并记 DEBUG；`zh-CN` 也没有时返回 key 本身。
@@ -151,7 +151,7 @@ vim / nano / sed 直接改 TOML，不再加全量列表命令。
 - Jinja 注入全局 `t()` + `<html lang>` + `window.__ARIS_I18N__`（只注入当前页命名空间）→ **S2 外壳**。
 - **不翻**：日志消息、LLM 工具描述、模块探针文案（§4.17 / §4.20）。
 
-### T3 工具开关（可外包，Lead 复核）
+### T3 工具开关
 
 - 种子 `src/aris/seed/config/tools.toml`（随档），**只记关闭项，缺失 = 全开**：
 
@@ -170,7 +170,7 @@ vim / nano / sed 直接改 TOML，不再加全量列表命令。
 - 开关在装配（注册）时生效，S1 不提供热重载；改了 `tools.toml` 需重启。
 - **不做**工具管理页（S2 外壳之后，页面在侧栏「工具」分组下）。
 
-### T4 品牌尾巴（可外包）
+### T4 品牌尾巴
 
 - `src/aris/infra/branding.py` 是唯一来源（已有 `APP_NAME` / `GITHUB_URL`）；
 - 清理：`*.egg-info` 残留、模板 / 文案里硬编码的项目名与仓库地址；
@@ -183,7 +183,7 @@ vim / nano / sed 直接改 TOML，不再加全量列表命令。
 文档仍在演进、文档站也还没做，集中清理**推迟到想起来 / 真要动它时**，见 `v1.0.0-prep.md` §10.1。
 S1 不碰这块。
 
-### T6 外部组件清单（Lead）
+### T6 外部组件清单
 
 **新增** `src/aris/infra/components.py`：PG / pgvector / micromamba / embedding 模型的
 来源、版本、校验值集中在这里（`v1.0.0-prep.md` §3.8 已定格式与范围）。
@@ -213,7 +213,7 @@ S1 不碰这块。
 - **不做**：下载逻辑（留在 `store/bootstrap.py`，这里只是事实）；uv（打包工具，归 S13）；
   STT / TTS / 本地推理运行时（v1 不预留空结构）。
 
-### T7 CMCB 缺失语义三态（Lead）
+### T7 CMCB 缺失语义三态
 
 `v1.0.0-prep.md` §3.7 已定：`call` 找不到服务时按**归属模块的实际装配状态**分三态，
 不再新增 `call_required()`。调用点零改动。
