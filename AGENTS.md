@@ -349,6 +349,7 @@ Aris 是一个**基于大语言模型、类似 Neuro-sama 的赛博生命**。�
 | 配置体系 | `docs/forAiDoc/CONFIG.md` |
 | 启动编排 `serve/` | `docs/forAiDoc/SERVE.md` |
 | 记忆系统（AMS） | `docs/forAiDoc/MEMORY.md` |
+| **决策模型（门控）** | `docs/process/v1.0.0-prep.md` §4.12——**与 LLM 提供商同一套基础设施但独立类型**；输出概率分布而非文本、**不调工具、不流式**；TypeSafe System One / OpenAI Decisions 两套协议；任何功能不得以「存在决策模型」为前提。**动这块之前必须先读该节，不要把它当成小模型或聊天补全** |
 | 知识库 | `docs/forAiDoc/KNOWLEDGE-BASE.md` |
 | 通用 MCP 客户端 | `docs/forAiDoc/MCP.md` |
 | 技能系统 | `docs/forAiDoc/SKILLS.md` |

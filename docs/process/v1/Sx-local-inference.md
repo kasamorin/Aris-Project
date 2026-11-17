@@ -8,7 +8,11 @@
 ## 1. 一句话
 
 把「装运行时 → 下模型 → 起 worker → 管显存 → 供向量」这条本地推理链路做成**一个模块、一套协议、
-一组可被 mock 的接口**，让 chat / 双工 / embedding 三类模型都能由用户自行添加，且**不污染主进程**。
+一组可被 mock 的接口**，且**不污染主进程**。
+
+> **范围变更（2026-11-18）**：v1.0 本地只做 **embedding** 与「用户自行添加的 chat 模型」，
+> **本地双工整体延后到 v1.x**（没有开源模型同时满足真双工 + 工具 + 中文 + 可用硬件）。
+> 双工在 v1.0 走云端适配器，契约见 `v1.0.0-prep.md` §4.28。
 
 ## 2. 出口条件（DoD）
 
@@ -20,7 +24,7 @@
 | 4 | 模型下载可恢复 | 中断后续传；sha256 不符拒绝入库；`models list` 显示 model / artifact / backend / runtime 四层 |
 | 5 | worker 协议可 mock | 纯 Python mock worker 跑通 load / chat / unload / ping；同一套 schema 校验器对 mock 与真 worker 双跑 |
 | 6 | 帧与错误码受控 | 超过 16 MiB 的帧被断开并记 `proto.frame_too_large`；`proto.*` / `worker.*` / `runtime.*` / `model.*` / `device.*` / `busy.*` / `duplex.*` 各有触发用例 |
-| 7 | 双工时序正确 | mock 双工跑通 open → audio_in → speak_start → audio_out → `playback.ack` → 打断五步；顺序错有用例失败 |
+| 7 | ~~双工时序~~ **延后到 v1.x**（本地双工不做；云端适配器另立文档） | — |
 | 8 | 调度规则生效 | 同模型第二次 load 被拒；预算不足拒绝并列出可卸载项；**强制加载不记忆**（第二次仍拦）；空闲卸载按加载方式生效 |
 | 9 | embedding 可用且可换 | Granite 97M ONNX 在 worker 内产出 384 维；prefix / pooling 来自 artifact；`store.embed` 经总线取向量；预热失败只降级不挂 serve |
 | 10 | 无 GPU 不假绿 | 无 GPU 环境下真机用例 `pytest.skip` 并说明原因；mock 用例必须全绿 |
@@ -211,6 +215,8 @@ chat   chat.start / chat.delta{seq, kind} / chat.end{finish_reason, usage}
 
 ### 落库口径
 
+> 以下规则由云端双工适配器复用；本地双工延后，事件名以各云端协议为准。
+
 - 用户语音不存原文件，只存转写（`conversation.item.input_audio_transcription`）。
 - Aris 侧只存**实际播出**的文本：用 `response.output_audio_transcript.delta` 与 `played_ms` 对齐，
   未播的尾巴丢弃；消息记 `truncated=true` / `played_ms`，`source` 区分 `text` / `duplex`。
@@ -288,7 +294,7 @@ available → installing → installed → loading → ready ⇄ busy → unload
 | T4 | worker 协议 + mock worker + schema 校验器 | T1 |
 | T5 | `llama_cpp` 后端（chat） | T2 / T3 / T4 |
 | T6 | `onnx_runtime` 后端（embedding）+ `store` 侧改走总线 | T2 / T3 / T4 |
-| T7 | `vllm_omni` 后端 + 双工适配（事件 / 时序 / resume） | T2 / T3 / T4 |
+| T7 | ~~`vllm_omni` 后端 + 双工适配~~ **延后到 v1.x**（本地双工不做） | — |
 | T8 | 调度（状态机、队列、预算、强制加载、空闲卸载） | T5 / T6 / T7 |
 | T9 | 页面数据接口（只给数据模型，页面由开发者设计） | T8 |
 
