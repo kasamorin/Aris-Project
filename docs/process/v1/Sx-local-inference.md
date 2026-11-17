@@ -209,7 +209,30 @@ chat   chat.start / chat.delta{seq, kind} / chat.end{finish_reason, usage}
 | `input_modes` 不含 text | 文本输入走 chat 模型 |
 | `chunk_period_ms` | 直接作为 UI「反应延迟」预期（MiniCPM-o = 1000 ms） |
 
+### 落库口径
+
+- 用户语音不存原文件，只存转写（`conversation.item.input_audio_transcription`）。
+- Aris 侧只存**实际播出**的文本：用 `response.output_audio_transcript.delta` 与 `played_ms` 对齐，
+  未播的尾巴丢弃；消息记 `truncated=true` / `played_ms`，`source` 区分 `text` / `duplex`。
+- 音频输出不存；v1 不做回放。
+
+### 打断
+
+- 不是可配策略：听模型的。收到停止 / 截断信号立刻停播，回传实际 `played_ms`。
+- `supports_barge_in=false` 的模型没有这回事，UI 明示。
+
+### 工具（实验特性，默认关）
+
+- 约定：instructions 里要求模型需要工具时输出标准标记；主进程解析转写流、剥掉标记、执行工具。
+- 结果用 `conversation.item.create` 写进历史（`input.text.append` 对原生双工被拒）。
+- 未验证：标记会不会被念出来；结果进历史后模型会不会主动接着说。验证前默认关。
+
 ## 7. 调度与生命周期
+
+### 模型选择（2026-11-18）
+
+- 全局默认模型 + 角色可设置自己的模型（实时切换）；未设置的角色用全局默认。
+- 不做「模型绑定角色」：同一本地模型被多角色指向时按多 session 共享，能力不够就 `model_busy`。
 
 ### 状态机
 

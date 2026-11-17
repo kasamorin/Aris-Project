@@ -137,6 +137,11 @@
   `0x01` msgpack 控制 / `0x02` PCM16LE 音频；单帧 ≤ 16 MiB；`read_exact`；20 ms 音频块；
   有界队列 + `playback.ack` 背压；`req_id`/`session` 取消；错误码命名空间；major 严格 + `capabilities`
   分支；ping 看门狗；纯 Python mock worker 做 CI。剩 msgpack 逐字段 schema 与双工音频时序。
+- **双工收尾（2026-11-18 定）**：打断不由我们定策略（听模型的，停播 + 回传 played_ms）；
+  落库只存用户转写与实际播出的文本，音频不存；双工工具改为「标准化输出 + 主进程解析」，
+  实验特性默认关（标记是否被念出、结果回注后是否接着说均未验证）。
+- **模型不硬绑角色（2026-11-18 修订）**：全局默认模型 + 角色可设置自己的模型并实时切换；
+  同一本地模型被多角色指向时按多 session 共享，不够就 `model_busy`。
 - **双工适配（2026-11-17 定）**：后端事件收敛成 Aris 内核事件；播放确认每 50 ms 上报 `played_ms`，
   transcript 以 `history_committed` 为准；打断按「停播 → 取位置 → cancel → truncate → clear」五步；
   重连走 resume，expired / resync_required 新建并明确告知；能力按 `capabilities` 分支不按模型名；
