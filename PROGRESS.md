@@ -137,6 +137,10 @@
   `0x01` msgpack 控制 / `0x02` PCM16LE 音频；单帧 ≤ 16 MiB；`read_exact`；20 ms 音频块；
   有界队列 + `playback.ack` 背压；`req_id`/`session` 取消；错误码命名空间；major 严格 + `capabilities`
   分支；ping 看门狗；纯 Python mock worker 做 CI。剩 msgpack 逐字段 schema 与双工音频时序。
+- **双工适配（2026-11-17 定）**：后端事件收敛成 Aris 内核事件；播放确认每 50 ms 上报 `played_ms`，
+  transcript 以 `history_committed` 为准；打断按「停播 → 取位置 → cancel → truncate → clear」五步；
+  重连走 resume，expired / resync_required 新建并明确告知；能力按 `capabilities` 分支不按模型名；
+  `inference.toml` 的 `[duplex] playback_lag_limit_ms` 默认 3000（动作固定为暂停新回复）。
 - **模型目录四层（2026-11-17）**：`model` → `artifact`（格式 / 量化）→ `backend` → `runtime`（wheel 变体）；
   能力从模型文件元数据 + 下载源 API + 后端声明三层取，加载后探测校正；人工只标 `verified` 与最低显存；
   v1 不做用户自带后端。
