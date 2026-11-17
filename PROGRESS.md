@@ -150,6 +150,9 @@
 - **运行时供给（2026-11-17 定）**：`data/runtime/<backend>/<variant>/<version>/venv` + `current` 指针；
   `uv pip install --extra-index-url`；**蓝绿更新不原地升级**；校验只做存在 / 可执行 / 可导入；
   GPU 探测只作闸门、不落盘；离线模式禁自动下载。
+- **本地推理施工文档已写（2026-11-17）**：`docs/process/v1/Sx-local-inference.md`——协议帧与消息族、
+  运行时安装 / 蓝绿切换、调度状态机与预算、双工事件映射与时序、DoD 与 T1–T9 任务拆解；
+  批次编号待定，定了改名。prep 只留决策与指针。
 - **embedding 收尾（2026-11-17 定）**：provider 分 local（worker）/ remote（OpenAI 兼容）；
   v1 只能走 worker；**取消「冷侧 BGE-M3」**，改由「检索结果少于 8 条隐藏」承接（落点在
   memory / knowledge）；prefix 与 pooling 由 artifact 声明；预热失败降级不挂 serve。
