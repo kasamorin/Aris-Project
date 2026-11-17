@@ -24,7 +24,10 @@
 | 8 | 调度规则生效 | 同模型第二次 load 被拒；预算不足拒绝并列出可卸载项；**强制加载不记忆**（第二次仍拦）；空闲卸载按加载方式生效 |
 | 9 | embedding 可用且可换 | Granite 97M ONNX 在 worker 内产出 384 维；prefix / pooling 来自 artifact；`store.embed` 经总线取向量；预热失败只降级不挂 serve |
 | 10 | 无 GPU 不假绿 | 无 GPU 环境下真机用例 `pytest.skip` 并说明原因；mock 用例必须全绿 |
-| 11 | 全检通过 | `bash scripts/check.sh` |
+| 11 | 安全边界成立 | socket 0600 / 目录 0700；worker 环境变量不含任何密钥；`trust_remote_code` 全仓为 0 处 |
+| 12 | 崩溃与孤儿可恢复 | 超过 `restart_max_attempts` 后停止并标 `failed`；残留 socket / pid 启动时被清理（有用例） |
+| 13 | 日志不泄漏 | `[chat]` 行可关；`sk-` / `Bearer` / `api_key=` 被替换为 `[REDACTED]`；超长单条截断并标记 |
+| 14 | 全检通过 | `bash scripts/check.sh` |
 
 ## 3. 运行时供给
 
@@ -328,3 +331,53 @@ T5 之后即可端到端试跑 chat；T6 决定 embedding 能否切换；T7 是�
 同模型多文件在业界的两种做法：**LM Studio 式**（按模型分组、展开文件列表、标硬件适配与推荐）；
 **Ollama 式**（每个量化是独立 tag，扁平列出）。Aris 取前者：卡片按模型分组，文件列表放管理弹窗，
 避免同一模型出现多张卡。
+
+## 12. 安全与生命周期（2026-11-18 定）
+
+### 权限边界
+
+- socket 文件 0600、所在目录 0700：同机其他用户连不上（不开 TCP 已是第一层）。
+- worker 与主进程同用户，**不提权、不 setuid**；`umask 077`，日志与临时文件默认他人不可读。
+- worker 环境变量只传必要的（线程数、设备、日志级别），**不传 `secrets.toml` 里的任何 API key**。
+
+### 资源与崩溃
+
+- v1 **不做 cgroup**：需要 root 或 systemd，与「便携、不注册系统服务」冲突。
+- CPU 推理给 worker 加 `nice`（默认 +5），避免打满整机导致主进程与 WebUI 卡顿。
+- OOM 只杀 worker，主进程不受影响；状态转 `failed.device_oom`。
+- 崩溃重启可配：
+
+  ```toml
+  [worker]
+  restart_max_attempts = 3
+  restart_window_s = 600
+  ```
+
+  退避 2 / 8 / 30 秒；超过次数**停止自动重启**，页面给「重试」。反复崩溃通常是模型文件问题，重启无意义。
+
+### 孤儿清理
+
+- worker 写 pid 文件与 socket；启动时逐个检查：pid 是否存活、命令行是否仍是本项目的 worker。
+- 不是就清掉 socket / pid；是就拒绝启动并提示「已有实例在跑」。
+
+### 代码执行边界（硬规则）
+
+- **禁止 `trust_remote_code`**：三个内置后端都在后端内部实现模型结构，不需要执行模型仓库里的 Python。
+- 代价要写在页面：需要自定义代码的模型**不能装**，不做「我知道风险，放行」的开关。
+- GGUF 里的 chat template 交给 llama.cpp 渲染（C++），不由 Python 侧执行 Jinja。
+
+### 日志
+
+- **单文件**：沿用 `data/logs/YYYY-MM-DD/aris.log`，不新增文件、不新增保留策略（现有 10 MB 轮转 / 30 天）。
+- 行内带频道：`[boot]` / `[chat]` / `[tool]` / `[llm]` / `[worker]`。
+- `[chat]` 行默认写、可整体关闭；关闭后运维日志一条不少。
+- 格式：一行一条，`cid` / `session` / `turn` 作关联键；工具调用与结果各一行（参数记摘要、结果只记字节数）。
+- 媒体只写占位：`[image 1200x800]` / `[audio 3.2s]`，不落原文。
+- 写入前脱敏：`sk-…` / `Bearer …` / `api_key=…` → `[REDACTED]`；单条超长截断并标 `…[+N]`。
+- `aris logs export` 导出时**默认剔除 `[chat]` 行**，避免对话原样进 issue。
+- 审计（`core/audit.py`）仍只在内存环形缓冲，**不落盘、不含内容**。
+
+### 文件完整性
+
+- 下载完成时算一次 sha256，写入 manifest，并记 `size + mtime`。
+- 加载时只比对 `size + mtime`；不符则转「需重新校验」，不做无条件全量哈希（8 GB 文件太重）。
