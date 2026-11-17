@@ -106,7 +106,9 @@
   chat 用 llama.cpp worker，双工用 vLLM-Omni 隔离 Python 3.13 worker（`DuplexOmni`，不起
   `vllm serve`），embedding 一并大改且模型可由用户更换、Aris 只给推荐。
   **同一个模型同时只运行一个实例**；多角色 / 多会话复用该实例，能否并行按模型能力协商
-  （如 vLLM-Omni 的 `supports_multi_session`），不支持则排队。本地双工按模型能力声明，
+  （如 vLLM-Omni 的 `supports_multi_session`）；**v1 不对单会话双工模型排队**，不支持就
+  `model_busy`。接入方式为标准接入流 + 专用管理面（`kind = "local"` 的 provider + 独立本地管理器）。
+  本地双工按模型能力声明，
   vLLM-Omni 为音频优先（纯文本输入不支持）。本机无可用 GPU，本地双工只能 mock / 契约测试，
   端到端需 GPU 机器。**验收口径：先实现 + mock / 契约测试，发布说明标注「未真机验证」，
   端到端等有 GPU 的机器 / 用户反馈再补**。细节待统一商议（§7-61），页面由开发者设计。契约见 §4.29。
