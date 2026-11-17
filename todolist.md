@@ -387,5 +387,6 @@
     Nemotron 真双工 + 工具待验证；MiniCPM-duplex 是 2024 文本研究原型。
     **普通 chat 模型同样允许用户添加**；模型目录面向 chat / duplex / embedding，不是双工专用。
     本地模型接入流已定：标准接入流 + 专用管理面（§4.29）。
-
-- [] 发布前补齐协作文档与模板（S14）：`CONTRIBUTING.md` / `SECURITY.md` 正文、Issue / PR 模板；CODEOWNERS 与 Dependabot 按需要再定（个人项目可选）
+48. **发布前补齐协作文档与模板（S14）**：`CONTRIBUTING.md` / `SECURITY.md` 正文、Issue / PR 模板；
+    CODEOWNERS 与 Dependabot 按需要再定（个人项目可选）。流程本体（CI 三档、rulesets 必需检查、
+    hooks、release 脚本）已具备，缺的只是文档与模板。
