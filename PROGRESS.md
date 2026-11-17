@@ -144,6 +144,15 @@
 - **模型目录四层（2026-11-17）**：`model` → `artifact`（格式 / 量化）→ `backend` → `runtime`（wheel 变体）；
   能力从模型文件元数据 + 下载源 API + 后端声明三层取，加载后探测校正；人工只标 `verified` 与最低显存；
   v1 不做用户自带后端。
+- **调度（2026-11-17 定）**：状态机 + 同一模型单实例；chat 串行有界队列，双工按 `max_sessions`；
+  预算不够**拒绝并列出可卸载项、默认不驱逐**；**强制加载每次都要确认、不记上次选择**；
+  空闲卸载按加载方式：预热 / 显式 0（不卸）、按需 10 min、embedding 常驻；手动卸载随时可用。
+- **运行时供给（2026-11-17 定）**：`data/runtime/<backend>/<variant>/<version>/venv` + `current` 指针；
+  `uv pip install --extra-index-url`；**蓝绿更新不原地升级**；校验只做存在 / 可执行 / 可导入；
+  GPU 探测只作闸门、不落盘；离线模式禁自动下载。
+- **embedding 收尾（2026-11-17 定）**：provider 分 local（worker）/ remote（OpenAI 兼容）；
+  v1 只能走 worker；**取消「冷侧 BGE-M3」**，改由「检索结果少于 8 条隐藏」承接（落点在
+  memory / knowledge）；prefix 与 pooling 由 artifact 声明；预热失败降级不挂 serve。
 - **WebChat 群聊暂缓（2026-11-17）**：WebChat 群聊暂不做、也暂不设计；消息平台群聊本来就不在本次范围。
 - **v1 打包范围加入 Gentoo ebuild（2026-11-13）**：v1.0 出 Arch 包 + deb + Gentoo ebuild（x86_64），
   其中 ebuild 含 GUI 源码构建（`dev-lang/go` + `go-module.eclass`）。主树已有 `dev-python/uv`，
