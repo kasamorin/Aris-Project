@@ -381,3 +381,49 @@ T5 之后即可端到端试跑 chat；T6 决定 embedding 能否切换；T7 是�
 
 - 下载完成时算一次 sha256，写入 manifest，并记 `size + mtime`。
 - 加载时只比对 `size + mtime`；不符则转「需重新校验」，不做无条件全量哈希（8 GB 文件太重）。
+
+## 13. 测试（2026-11-18 定）
+
+### 分层
+
+| 层 | 跑什么 | GPU | 进公共 CI |
+|---|---|---|---|
+| 单元 | 帧编解码、状态机、能力解析、预算判定 | 否 | 是 |
+| 契约 | mock worker 全链路（load / chat / 双工 / embed / unload）；schema 校验器对 mock 与真 worker 双跑 | 否 | 是 |
+| 真模型（无 GPU） | **只跑 embedding**：Granite 97M ONNX 走完整链路 | 否 | 是（integration 档） |
+| 真模型（GPU） | vLLM-Omni 双工最短路径 | 是 | 否 |
+| 基准 | 加载耗时、首 token、embedding 单条延迟、ingest 吞吐 | 视情况 | 否 |
+
+### 为什么 CI 只跑 embedding 真模型
+
+本地模型体系的目标是「本地优先」，而实际长期在本机跑的主要是 **embedding** 与**决策模型**；
+chat 与双工在个人机器上不一定常开。所以：
+
+- integration 档下载 Granite 97M ONNX（~400 MB）并缓存，跑：摄入 → 检索 → 换模型重索引的最小链路；
+- 断言：384 维、同文本同向量（容差内）、prefix / pooling 按 artifact 生效、`store` 侧经总线取到结果；
+- 决策模型（S11）复用同一套小模型 harness，届时再加一个真模型用例。
+
+### CI 档位（对齐现有 `ci.yml`）
+
+| 档 | 内容 |
+|---|---|
+| `check` | ruff / format / mypy + 单元 + 契约（mock），不下载模型 |
+| `integration` | 上面 + 真库 + embedding 真模型 |
+| `smoke` | `aris serve --dry-run` + 页面数据接口能起 |
+
+**连带改动**：主进程切 3.15 时 `ci.yml` 的 `python-version` 同步更新；embedding 组移出主依赖后
+`check` 档不再装 torch，会明显变快。
+
+### 基准
+
+- **本地脚本**：`scripts/bench.py` 写 JSON 历史，**不设阈值、不进 CI**。
+- 只比同机同配置的相对值；换机、换后端变体的绝对值不可比，不做跨机对比。
+- 记录项：运行时安装耗时、模型加载耗时、首 token 延迟、embedding 单条延迟、摄入吞吐。
+- 将来若要在 CI 里做性能门禁，用 **CodSpeed simulation 模式**（不依赖墙钟，抗共享 runner 噪声），
+  不拿 `pytest-benchmark` 的墙钟数字去卡阈值。
+
+### 兼容矩阵
+
+- 后端 × 变体（cpu / cu124 / rocm72 / vulkan）写成文档表，标「已验证 / 未验证 / 无法验证」。
+- CI 只跑 `cpu` 列；GPU 变体由发布前的人工验证补，结果写进 Release 说明。
+- 无 GPU 环境下 GPU 用例 `pytest.skip` 并写明原因，**不假绿**。
