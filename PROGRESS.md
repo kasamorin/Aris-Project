@@ -129,10 +129,14 @@
   `inference.`），不扩进 `store`；叶子基础设施、只依赖 `infra` / `core`，`store` 经总线调它取向量。
   术语三层：本地模型 / 推理后端 / 运行时；代码里不再拿 `runtime` / `engine` / `serving` 当模块名。
   embedding 执行位置按 backend 能力 + 配置选择，不写死。
-- **推理 worker 统一 Python 3.13，每后端一个 venv（2026-11-17）**：llama.cpp 的 GPU wheel 实测为
-  `py3-none`（不绑 Python；README 的 3.10–3.12 是旧信息），vLLM-Omni `<3.14`，vllm `cp38-abi3`，
-  三者在 3.13 同时成立；3.13 是 v1 起点，后端矩阵升级时跟着升。主进程仍 3.14；embedding 默认
-  进程内 ONNX（`onnxruntime` 1.32.0 有 3.14 wheel）。
+- **主进程 v1.0 目标 Python 3.15（2026-11-17 定，硬性）**：worker 隔离解掉本地模型的版本限制；非 embedding
+  依赖实测在 3.15 全部可解析。**embedding 因此必须走独立 worker**（onnxruntime / openvino 都还没有
+  cp315 wheel），主 venv 同时瘦身。所有 worker（含 embedding）统一 **3.13**。
+  pyproject / CI / AGENTS §5 的切换在施工批次落地时一起改，此前文档不宣称已升级。
+- **worker 协议（2026-11-17 定）**：每 worker 一条 UDS；`[type:u8][len:u32 BE][payload]`，
+  `0x01` msgpack 控制 / `0x02` PCM16LE 音频；单帧 ≤ 16 MiB；`read_exact`；20 ms 音频块；
+  有界队列 + `playback.ack` 背压；`req_id`/`session` 取消；错误码命名空间；major 严格 + `capabilities`
+  分支；ping 看门狗；纯 Python mock worker 做 CI。剩 msgpack 逐字段 schema 与双工音频时序。
 - **模型目录四层（2026-11-17）**：`model` → `artifact`（格式 / 量化）→ `backend` → `runtime`（wheel 变体）；
   能力从模型文件元数据 + 下载源 API + 后端声明三层取，加载后探测校正；人工只标 `verified` 与最低显存；
   v1 不做用户自带后端。
