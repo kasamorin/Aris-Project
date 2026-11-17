@@ -381,6 +381,7 @@
     消息平台群聊本来就不在本次范围。本轮只设计**全双工模型适配**：同一模型单实例；
     `supports_multi_session` 决定多会话；**v1 不对单会话双工模型排队**，不支持就 `model_busy`。
     **不为每个角色单独微调模型**：人格靠 prompt.md + per-session instructions，音色靠 voice / ref_audio。
-    模型选型待议：MiniCPM-o 真双工无工具；Qwen3-Omni 有工具但非原生双工（VAD 轮次）；
-    Nemotron 真双工 + 工具但集成待验证；MiniCPM-duplex 是 2024 文本研究原型。
+    模型选型：**MiniCPM-o 4.5 为推荐 / 已适配**（上游验证真双工、无工具、16 会话；本机未真机跑）；允许用户添加其他模型
+    （Gander / Realtime-Venus 等，需各自 backend，未验证）。Qwen3-Omni 有工具但非原生双工；
+    Nemotron 真双工 + 工具待验证；MiniCPM-duplex 是 2024 文本研究原型。
     本地模型接入流已定：标准接入流 + 专用管理面（§4.29）。
