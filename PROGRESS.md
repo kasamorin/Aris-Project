@@ -129,6 +129,13 @@
   `inference.`），不扩进 `store`；叶子基础设施、只依赖 `infra` / `core`，`store` 经总线调它取向量。
   术语三层：本地模型 / 推理后端 / 运行时；代码里不再拿 `runtime` / `engine` / `serving` 当模块名。
   embedding 执行位置按 backend 能力 + 配置选择，不写死。
+- **推理 worker 统一 Python 3.13，每后端一个 venv（2026-11-17）**：llama.cpp 的 GPU wheel 实测为
+  `py3-none`（不绑 Python；README 的 3.10–3.12 是旧信息），vLLM-Omni `<3.14`，vllm `cp38-abi3`，
+  三者在 3.13 同时成立；3.13 是 v1 起点，后端矩阵升级时跟着升。主进程仍 3.14；embedding 默认
+  进程内 ONNX（`onnxruntime` 1.32.0 有 3.14 wheel）。
+- **模型目录四层（2026-11-17）**：`model` → `artifact`（格式 / 量化）→ `backend` → `runtime`（wheel 变体）；
+  能力从模型文件元数据 + 下载源 API + 后端声明三层取，加载后探测校正；人工只标 `verified` 与最低显存；
+  v1 不做用户自带后端。
 - **WebChat 群聊暂缓（2026-11-17）**：WebChat 群聊暂不做、也暂不设计；消息平台群聊本来就不在本次范围。
 - **v1 打包范围加入 Gentoo ebuild（2026-11-13）**：v1.0 出 Arch 包 + deb + Gentoo ebuild（x86_64），
   其中 ebuild 含 GUI 源码构建（`dev-lang/go` + `go-module.eclass`）。主树已有 `dev-python/uv`，
