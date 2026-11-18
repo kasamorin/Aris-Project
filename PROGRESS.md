@@ -148,6 +148,8 @@
 - **双工入口与成本（2026-11-18）**：WebChat 内切换语音 / 文本，启动弹实验性警告、默认文本；
   只显示通话时长，`duplex.remind_every_min` 控制周期提醒（默认 0）。语音里工具不确认（非 agentic，
   现有工具也没有改写 / 删除能力）。上下文分两层：后端复用现有 compact；Live 会话过长则新建并用摘要 seed。
+- **思考链 / Reasoning 定型（2026-11-18）**：落库（messages 加 `reasoning_content` 列，不参与检索 / 查找）；compact 时思考链不参与摘要、直接丢弃（对齐 AstrBot）；**不发明统一档位抽象**——模型元信息存提供商原样 `thinking.efforts` 档位表，角色 / 模型配置填原样值、请求原样透传；`thinking_default` 改为档位字符串 | None；硬约束：DeepSeek 带 tools 必须回传 `reasoning_content`、Anthropic thinking 块带 signature；提供商差异表按官方文档逐条核实（OpenAI 七档 / DeepSeek thinking+reasoning_effort / Anthropic adaptive 替代已废弃 budget_tokens）。批次落点 S6 / S7 / S8。契约见 §4.3.1。
+- **联网搜索与实验室 tab（2026-11-18）**：内置 Tavily / Exa 改为**可删除**（Bing / `auto` 仍不可删）；设置页新增**实验室 tab**——合成 tab，配置项标 `experimental=True` 自动归入、原 tab 仍可见，不做 `lab.toml`；UI 设计任务单 `docs/process/assets/ui-design-tasks.md`（14 页面 + 通用元素）已写，草图待开发者。
 - **双工归 S7（2026-11-18）**：双工适配器并入 S7（LLM 重构 + 统一连接），作为第三种传输形态；
   GPT-Live 不收图，用户发图复用 §4.2 的图片转述管线（默认关、按图缓存、模型可配）。
 - **云端全双工定为 GPT-Live（2026-11-18）**：v1 只做 **GPT-Live-1 + client delegation**（Aris 跑
@@ -345,7 +347,7 @@
 | `serve/` | 完成：`aris serve` 一条命令起全套；唯一组装根 |
 | `webui/` | 完成：鉴权 / 仪表盘 / 审计 / 提供商 / 技能 / 配置 / 日志 / 知识库；配置页体验待重做 |
 | `memory/` | v1 P4 开工（对外名 **AMS**）；契约已按 2026-11-03 决策更新（见 `docs/forAiDoc/MEMORY.md`） |
-| 本地模型体系（待建） | 方案已定：受管子进程 + IPC；chat llama.cpp / 双工 vLLM-Omni 隔离 3.13 / embedding 大改；细节见 §7-61 |
+| 本地模型体系（待建） | 方案已定：受管子进程 + IPC；chat llama.cpp / 双工 vLLM-Omni 隔离 3.13 / embedding 大改；细节见 §7-61。**范围收窄（2026-11-18）**：本地推荐只留 embedding、本地双工延后 v1.x，本地推理并入 S5 |
 | `voice/` | 占位：STT / TTS 选型未定 |
 | `autorun/` | 方向已定，暂不实现（只留设计） |
 
@@ -378,7 +380,7 @@
   仓库开关仍需先在上游设置里打开）。
 - **安装态数据目录**：**包安装用 `~/.aris-project`，源码树用项目根 `data/`**（2026-11-06 定）；不做 XDG、不上 Flatpak。
 - **v1 设计已收口**：`docs/process/v1.0.0-prep.md` §7 只剩 CONTRIBUTING / SECURITY 正文待定
-  （S14 前），其余条目均可直接施工。
+  （S14 前），其余条目均可直接施工；批次文档已有 S1 / S5 / S13，S2–S4 / S6–S12 / S14 待写。
 - STT 选型：候选 Groq Whisper / 通义听悟。
 - mypy 检查范围：当前只查 `core` + `store`，扩到其余模块的时间待定。
 - `CONTRIBUTING.md` / `SECURITY.md`：0 字节占位，S14 重写（面向人类、不引用 AI 文档）。
@@ -390,4 +392,6 @@
 2. **S1 已谈定，可开工**（2026-11-07）：元数据字段 / 英文 slug / 新增 `config` 命名空间 /
    `condition` 先落字段 / `config.items` 在 S1 提供 / 不做 `aris config items` /
    可关模块改显式 `register()`；细节见 `docs/process/v1/S1-foundation.md`。
-3. **v1 文档剩余待定项**：GUI 框架、WebChat 界面、彩蛋等（§5.4 / §7）。
+3. **批次施工文档**：S1 / S5 / S13 已写；S2 外壳 / S3 备份 / S4 配置档 / S6 消息模型 / S7 引擎+双工 /
+   S8 设置页 / S9 消息平台 / S10 记忆+角色 / S11 WebChat+决策+autorun / S12 知识库二期 / S14 i18n 收尾待写。
+4. **v1 文档剩余待定项**：GUI 框架、WebChat 界面、彩蛋等（§5.4 / §7）。
