@@ -212,7 +212,7 @@ Aris 是一个**基于大语言模型、类似 Neuro-sama 的赛博生命**。�
 | `data/config/settings.toml` | 启动级参数（`[settings]` 表，非密钥） | 键映射成 `ARIS_<KEY>`，再由 pydantic-settings 读（`src/aris/infra/settings.py`） |
 | `data/config/secrets.toml` | 密钥：键名就是环境变量名（`DEEPSEEK_API_KEY` 等） | `setdefault` 进 `os.environ`（`src/aris/infra/settings.py`） |
 | `data/config/providers.toml` | LLM 提供方：base_url、key 环境变量名、超时、transport、模型 | `src/aris/core/llm/config.py`；`ARIS_LLM_PROVIDERS_FILE` 可覆盖路径 |
-| `data/config/<module>.toml` | 各模块可调参数（chat / search / logging / serve / knowledge / mcp / store / webui / audit / notify） | `src/aris/infra/toml.py` |
+| `data/config/<module>.toml` | 各模块可调参数（chat / search / logging / serve / knowledge / mcp / store / webui / audit / notify / decision） | `src/aris/infra/toml.py` |
 | `data/config/modules.toml` | 模块开关（`[modules]`） | `aris modules` / serve 装配 |
 
 - 优先级：代码内 dataclass 默认值 < 种子模板 < `data/config/*.toml` < 进程环境变量。
@@ -349,7 +349,7 @@ Aris 是一个**基于大语言模型、类似 Neuro-sama 的赛博生命**。�
 | 配置体系 | `docs/forAiDoc/CONFIG.md` |
 | 启动编排 `serve/` | `docs/forAiDoc/SERVE.md` |
 | 记忆系统（AMS） | `docs/forAiDoc/MEMORY.md` |
-| **决策模型（门控）** | `docs/process/v1.0.0-prep.md` §4.12——**与 LLM 提供商同一套基础设施但独立类型**；输出概率分布而非文本、**不调工具、不流式**；TypeSafe System One / OpenAI Decisions 两套协议；任何功能不得以「存在决策模型」为前提。**动这块之前必须先读该节，不要把它当成小模型或聊天补全** |
+| **决策模型（门控）** | `docs/process/v1.0.0-prep.md` §4.12——**与 LLM 提供商同一套基础设施但独立类型**；输出概率分布而非文本、**不调工具、不流式**；`/v1/systemone`（TypeSafe / HF Transformers / llama.cpp）与 OpenAI Decisions 两套协议；**本地决策模型 = Aris 托管、暂不推荐具体模型**；任何功能不得以「存在决策模型」为前提。**动这块之前必须先读该节，不要把它当成小模型或聊天补全** |
 | 知识库 | `docs/forAiDoc/KNOWLEDGE-BASE.md` |
 | 通用 MCP 客户端 | `docs/forAiDoc/MCP.md` |
 | 技能系统 | `docs/forAiDoc/SKILLS.md` |

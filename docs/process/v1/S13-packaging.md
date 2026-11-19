@@ -18,7 +18,7 @@
 | 1 | Arch 包真机装得上、起得来 | `pacman -U` 后 `arisp serve` 正常，`arisp doctor` 全绿 |
 | 2 | deb 在 Debian 13 容器里装得上、起得来 | `dpkg -i` 后 `arisp serve` 正常 |
 | 3 | 首启不污染 `$HOME` | 装完首次运行后 `~/.local/share/uv`、`~/.cache/uv` **不存在** |
-| 4 | 包升级不白跑一次全量装 | 同版本重装、或只改文档的小版本升级后，首启秒开（stamp 未变） |
+| 4 | 已同步时首启快 | 同版本重装、或只改文档的小版本升级后，热缓存下 `time arisp --version` < 1 s |
 | 5 | 离线失败可读 | 断网首启给出「需要联网下载运行时」的明确提示与镜像开关，不是 traceback |
 | 6 | 卸载干净 | `/usr/share/aris-project`、`/usr/lib/aris-project`、`.desktop`、图标全没了；`<data>` 保留 |
 | 7 | CD 跑通 | tag 触发 → 两个包 + `SHA256SUMS` 挂到 Release |
@@ -74,23 +74,33 @@ export UV_PROJECT_ENVIRONMENT="<data>/runtime/venv"
 export UV_PYTHON_INSTALL_DIR="<data>/runtime/python"
 export UV_CACHE_DIR="<data>/runtime/uv-cache"
 
-# 3) 版本戳比对，变了才同步
-STAMP="<data>/runtime/.stamp"
-WANT="$(cat /usr/share/aris-project/.python-version)<app_version>"
-[ "$(cat "$STAMP" 2>/dev/null)" = "$WANT" ] || {
-  "$UV" sync --frozen --no-default-groups --project /usr/share/aris-project || exit 1
-  printf '%s' "$WANT" > "$STAMP"
-}
+# 3) 解释器：只认 .python-version
+PYVER="$(cat /usr/share/aris-project/.python-version)"
+"$UV" python find "$PYVER" >/dev/null 2>&1 || "$UV" python install "$PYVER" || exit 1
 
-# 4) exec 运行时（不再触发 sync）
-exec "$UV" run --frozen --no-sync --project /usr/share/aris-project aris "$@"
+# 4) 同步（可选组从 groups 文件读；已同步时约 30 ms）
+GROUPS=""
+if [ -f "<data>/runtime/groups" ]; then
+  while IFS= read -r group; do
+    [ -n "$group" ] && GROUPS="$GROUPS --group $group"
+  done < "<data>/runtime/groups"
+fi
+# shellcheck disable=SC2086
+"$UV" sync --frozen --no-default-groups $GROUPS --project /usr/share/aris-project || exit 1
+
+# 5) exec 运行时（不再触发 sync）
+exec "<data>/runtime/venv/bin/aris" "$@"
 ```
 
 - **`<data>` 的解析要复用 `infra/paths.py` 的规则**（`ARIS_DATA_DIR` > 开发树 `./data` > 默认目录），
   启动器只做一次字符串拼接，不重写逻辑；GUI 拉起后端时显式注入 `ARIS_DATA_DIR`。
 - **解释器只认 `.python-version`**：`requires-python` 是「允许范围」，不是「装哪个」。
-- **`--no-default-groups`**：`dev` / `embedding` 都不装；本地 embedding 由用户开启时再
-  `uv sync --frozen --group embedding`（同一个 venv，项目目录只读不影响）。
+- **`--no-default-groups`**：`dev` / `embedding` 都不装；本地 embedding 由用户开启时把 `embedding`
+  写进 `<data>/runtime/groups`，下次启动由脚本追加 `--group embedding`（同一个 venv，
+  项目目录只读不影响）。`uv sync` 默认 exact，**每次都必须把可选组传全**，否则会被当成多余包删掉。
+- **不做版本戳**（2026-11-13 定稿）：每次启动交给 `uv python find/install` + `uv sync --frozen` 判定。
+  已同步时实测约 30 ms（`Checked 121 packages in 1ms`）；好处是 venv 被删、包装到一半、依赖变了
+  都能自愈，不需要维护「stamp 说已同步、实际缺包」的失效规则。首次启动与升级后仍然需要联网装包。
 - **失败处理**：
 
   | 情况 | 表现 |
@@ -98,7 +108,24 @@ exec "$UV" run --frozen --no-sync --project /usr/share/aris-project aris "$@"
   | 无网络 / 镜像不通 | 打印「首次运行需要联网下载 Python 与依赖」+ 可用的镜像环境变量（`UV_DEFAULT_INDEX` / `UV_PYTHON_INSTALL_MIRROR`）+ 原始错误末行 |
   | 磁盘不足 | 明确报「`<data>/runtime` 需要约 300 MB」 |
   | uv 版本过旧 | 报版本并提示升级；deb 内置的那份不存在此问题 |
-  | stamp 在但 venv 被删 | 自动当作「未同步」，重跑 `uv sync` |
+  | venv 被删 / 包不完整 | `uv sync` 自动重建 / 补齐，不需要额外判断 |
+
+**首启下载清单（2026-11-06 实测，2026-11-13 拆时间点）**
+
+| 项 | 时机 | 大小（实测） |
+|---|---|---|
+| uv | 安装包（deb 内置；Arch 走系统包；Gentoo 用系统包） | 16 MB 压缩 |
+| CPython（python-build-standalone） | `arisp` 启动器首启，**不一定下** | 73 MB |
+| 基础依赖（`--no-default-groups`） | `arisp` 启动器首启 | 装好 129 MB（含工程本体） |
+| 便携 PG + pgvector | `aris serve` 首启（或 `aris db init`） | 约 40 MB |
+| 本地 embedding（torch / openvino + 模型） | 用户选「本地」时 | 1.5 GB+ |
+
+- **Python 不一定下**：uv 默认 `python-preference = "managed"`（优先托管版），所以 Arch / deb
+  默认会下 73 MB；Gentoo 的 `uv.toml` 设 `system`，用户 `emerge dev-lang/python:<版本>` 后就用系统的。
+  deb 13 的系统 Python 不够新，必须下。
+- 缓存统一指 `<data>/.uv-cache`；重装 / 重同步不重复下载，除非清 `data/`。
+- 「本地 embedding 运行时未安装」不能裸抛 `ImportError`：`aris doctor` 要能检出、
+  设置页给「安装本地模型运行时」、CLI 给对等命令（内部执行 `uv sync --frozen --group embedding`）。
 
 ## 6. Arch 包（`packaging/PKGBUILD`）
 
@@ -133,8 +160,8 @@ exec "$UV" run --frozen --no-sync --project /usr/share/aris-project aris "$@"
 - **不内置 uv**：`RDEPEND="dev-python/uv"`（主树已有 0.13.x）。源码放 `/usr/share/aris-project/`，
   GUI 随 ebuild 从源码构建（`dev-lang/go` + `go-module.eclass`），`.desktop` / 图标按 FHS 进 `/usr/share`。
 - **首启不能依赖 uv 自动下 Python**：`dev-python/uv` 写的 `/etc/xdg/uv/uv.toml` 默认
-  `python-downloads = "manual"`；wrapper 必须显式 `uv python find 3.14`，找不到再 `uv python install 3.14`，
-  失败提示 `emerge dev-lang/python:3.14`。
+  `python-downloads = "manual"`；wrapper 必须显式 `uv python find 3.15`，找不到再 `uv python install 3.15`，
+  失败提示 `emerge dev-lang/python:3.15`。
 - **只做静态校验**（`pkgcheck scan`、`ebuild … manifest`、`--pretend`），**不做真机 `emerge` 验证**；
   ebuild 注释与 Release 说明都标注「未经真机安装验证」。
 - **不进 GURU**：等出现第二个维护者 / 贡献者再提；主树要 Gentoo dev 担保，不作为 v1 目标。
@@ -162,7 +189,45 @@ StartupWMClass=dev.arisproject.aris
 - MyGO（GTK3 + WebKitGTK 4.1，无 cgo），`mygo build` 只产可执行文件；
   `.desktop` / 安装器都用我们自己的配方（MyGO 的产物只作对照）。
 - 运行期依赖：`gtk3` / `libgtk-3-0t64`、`webkit2gtk-4.1` / `libwebkit2gtk-4.1-0`。
-- 启动行为、连接文件读序、关窗语义见 `v1.0.0-prep.md` §4.15。
+- **GUI 只是前端，不得脱离后端独立运行**：连不上时按下面「启动行为」处理，不静默降级成空壳。
+
+### 连接发现
+
+- 后端在 WebUI **成功 bind 之后**写 `<data>/state/webui.json`（原子写：tmp + rename）：
+  `{ addr, pid, started_at, app_version }`；**正常退出时删除**，崩溃残留由读者判失效。
+- 读序（GUI 与 CLI 共用同一套）：
+  ① `--addr` 启动参数 → ② 环境变量 `ARIS_WEBUI_ADDR` → ③ `webui.json`（校验 pid 存活 + `/api/health` 握手）
+  → ④ 探测 `webui.toml` 里的默认端口 → ⑤ 连接页（可手填，记住上次）。
+- 为什么不是裸端口文件：要多带 `pid` 才能判「文件是上次崩溃留下的」；要带 `started_at` / `app_version`
+  才能提示「你连的是旧版本后端」。
+
+### 启动与窗口
+
+- **启动行为**：启动后**自动在本机找已运行的 `aris`**（健康检查 / 端口探测）——找到就连；
+  **没找到就在后台拉起一个后端**（包安装调 `arisp`，源码环境调 `aris`）并等待就绪再连接；
+  都失败则显示连接页（地址可填、记住上次、重试）。后端仍可独立运行。
+- **关窗口只关 GUI，不停后端**：消息平台、autorun、记忆抽取继续跑；关窗前/关窗后给明确提示
+  「后端仍在运行」，并提供**「关闭后端」按钮**。
+- 「关闭后端」的实现：`POST /api/system/shutdown`（**需登录态 + CSRF**，走优雅停机，与重启同一条路径）；
+  CLI 对等命令 `aris shutdown`（读连接文件 → 优先调该接口，失败退回对 pid 发 SIGTERM）。
+  这是**前端路由**，不算「项目内部 HTTP 接口」（CMCB 的限制针对模块间通讯）。
+- **GUI 有设置页**：后端地址（可填、可测连通）、启动时是否自动拉起后端、等待就绪超时、关闭窗口行为说明；
+  GUI 自己的状态（窗口尺寸 / 上次地址）写 `<data>/state/gui.json`，随 `data/` 走。
+- **版本号**：GUI **与主版本同步**（`1.0.0` 同号），用户少一个心智负担。
+- **GUI v1 能力面**：单实例锁 + 记住窗口大小 / 位置 + 连接失败页；
+  **托盘 / 通知 / 自动更新放 v1.x**（启动速度实测快，不需要靠托盘降低重启成本）。
+- **单实例行为**：用 MyGO 的 `RequestSingleInstanceLock()`——后续实例返回 `false`，
+  把命令行参数转发给第一个实例后**自己退出**；第一个实例在 `OnSecondInstance` 里**激活并前置已有窗口**。
+  Wayland 的前台权限由 MyGO 用 `XDG_ACTIVATION_TOKEN` + `AllowForeground` 处理，我们不自己造。
+  不做第二个窗口、不做多窗口。
+- **登录态**：**不开免密通道**——GUI 不拿 token 绕过密码。webview 里走 WebUI 自己的登录页，
+  cookie 持久化，7 天后重新登录。
+- **webview 数据目录**：用 `App.SetPath(PathUserData, <data>/state/gui/)` 把 MyGO 的用户数据目录
+  指到 `data/` 下，cookies / local storage 随 `data/` 一起迁移与备份（`state/` 属可重建层，
+  丢了只是重新登录）。**未验证**：默认会话的实际落盘是否严格跟随 `PathUserData`——实现时实测一次；
+  若不跟随，就退化为「登录态不随 `data/` 迁移」，并在设置页注明，不另造存储方案。
+- **深链：v1 不做**，`.desktop` 不写 `MimeType=x-scheme-handler/...`。
+  将来要做时 scheme 用 **`aris-project://`**（与包名一致，RFC 3986 允许 scheme 带连字符）。
 
 ## 10. CI 与发版
 
@@ -193,7 +258,8 @@ StartupWMClass=dev.arisproject.aris
 
 ## 12. 风险与待定
 
-- **首个带 cp315 wheel 的 OpenVINO 版本**决定 `.python-version` 何时能升 3.15（见 §4.15）。
-- **包升级后的 venv 重建成本**：目前 stamp 只看 Python 版本与包版本；
-  若某次升级只改了依赖，包版本必然变，会触发一次 `uv sync`（增量，走缓存，可接受）。
+- **主进程 Python 3.15 的依赖边界**：`onnxruntime` / `openvino` 没有 cp315 wheel，embedding 已改走
+  独立 worker（3.13），不再阻塞主进程升级；新增依赖前先确认有 cp315 或 abi3 wheel（见 §4.15 / §4.29）。
+- **每次启动的同步检查**：热缓存实测约 30 ms（`Checked 121 packages in 1ms`）；首次启动与升级后
+  需要联网并可能装包。不做版本戳，避免「stamp 说已同步、实际 venv 缺包」的假阴性。
 - **mygo 版本迭代快**：`gui/` 开工时再评估 API，不锁定版本。

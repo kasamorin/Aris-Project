@@ -10,7 +10,9 @@
 把「装运行时 → 下模型 → 起 worker → 管显存 → 供向量」这条本地推理链路做成**一个模块、一套协议、
 一组可被 mock 的接口**，且**不污染主进程**。
 
-> **范围变更（2026-11-18）**：v1.0 本地只做 **embedding** 与「用户自行添加的 chat 模型」，
+> **范围变更（2026-11-18，2026-11-20 补决策模型）**：v1.0 本地做 **embedding**、
+> 「用户自行添加的 chat 模型」与**决策模型**（Aris 托管、与远端 `systemone` provider 同一套适配器）；
+> 决策模型**暂不预置推荐**（没实测过，见 `v1.0.0-prep.md` §4.12）。
 > **本地双工整体延后到 v1.x**（没有开源模型同时满足真双工 + 工具 + 中文 + 可用硬件）。
 > 双工在 v1.0 走云端适配器，契约见 `v1.0.0-prep.md` §4.28。
 
@@ -22,8 +24,8 @@
 | 2 | 运行时供给幂等 | `aris inference runtime install llama_cpp --variant cpu` 重复执行不重建；`runtime.json` 记录 backend / variant / python / packages |
 | 3 | GPU 变体受闸门约束 | 探不到 CUDA 时装 `cu124` 直接拒绝并给出可行变体；探测结果不写进配置 |
 | 4 | 模型下载可恢复 | 中断后续传；sha256 不符拒绝入库；`models list` 显示 model / artifact / backend / runtime 四层 |
-| 5 | worker 协议可 mock | 纯 Python mock worker 跑通 load / chat / unload / ping；同一套 schema 校验器对 mock 与真 worker 双跑 |
-| 6 | 帧与错误码受控 | 超过 16 MiB 的帧被断开并记 `proto.frame_too_large`；`proto.*` / `worker.*` / `runtime.*` / `model.*` / `device.*` / `busy.*` / `duplex.*` 各有触发用例 |
+| 5 | worker 协议可 mock | 纯 Python mock worker 跑通 load / chat / decision / unload / ping；同一套 schema 校验器对 mock 与真 worker 双跑 |
+| 6 | 帧与错误码受控 | 超过 16 MiB 的帧被断开并记 `proto.frame_too_large`；`proto.*` / `worker.*` / `runtime.*` / `model.*` / `device.*` / `busy.*` / `decision.*` / `duplex.*` 各有触发用例 |
 | 7 | ~~双工时序~~ **延后到 v1.x**（本地双工不做；云端适配器另立文档） | — |
 | 8 | 调度规则生效 | 同模型第二次 load 被拒；预算不足拒绝并列出可卸载项；**强制加载不记忆**（第二次仍拦）；空闲卸载按加载方式生效 |
 | 9 | embedding 可用且可换 | Granite 97M ONNX 在 worker 内产出 384 维；prefix / pooling 来自 artifact；`store.embed` 经总线取向量；预热失败只降级不挂 serve |
@@ -32,8 +34,39 @@
 | 12 | 崩溃与孤儿可恢复 | 超过 `restart_max_attempts` 后停止并标 `failed`；残留 socket / pid 启动时被清理（有用例） |
 | 13 | 日志不泄漏 | `[chat]` 行可关；`sk-` / `Bearer` / `api_key=` 被替换为 `[REDACTED]`；超长单条截断并标记 |
 | 14 | 全检通过 | `bash scripts/check.sh` |
+| 15 | 决策能力可托管 | `decision` 模型在目录 / 调度 / 页面可见；mock worker 跑通 `state + questions → answers(probabilities)`；没有可用模型或加载失败时 provider 不可用并降级，不影响其他功能 |
 
-## 3. 运行时供给
+## 3. 模块结构与运行时供给
+
+### 模块与命名
+
+- **独立模块** `src/aris/inference/`，服务前缀 `inference.`；**不扩进 `store`**——当年把 PG 与
+  embedding 都放 `store` 只是因为「都在本地 + 只有一个模型」，模型可换 / 多后端之后不成立。
+- **术语三层**：**本地模型**（用户可见条目）/ **推理后端**（llama.cpp、ONNX Runtime、vLLM-Omni、
+  SGLang-Omni）/ **运行时**（`data/runtime/` 下的隔离 venv）。代码里不用 `runtime` / `engine` /
+  `serving` 当模块名——`runtime` 已被 `behavior/runtime.py` 与 `data/runtime/` 占用，`engine` 指
+  `core/llm`，`serving` 特指对外 HTTP。
+- **层级**：`inference` 是**叶子基础设施模块**，只依赖 `infra` / `core`，不碰数据库、不 import
+  业务模块；`store` 经总线调 `inference.embed` 取向量，方向恒为单向。
+- **子包**：`catalog/`（推荐清单 + 自定义 + manifest）、`download.py`、`runtime/`（后端 venv 供给）、
+  `worker/`（受管子进程 + 协议 + mock）、`backends/`（各后端适配器 + base 接口）、`scheduler.py`
+  （加载 / 卸载 / 预算 / 单实例 / 多会话）、`service.py`（总线门面）、`tools.py`、`conf.py`。
+- **配套**：`store/embedding/` 的 Bekko provider 退役，向量计算挪进 `inference/backends/`，
+  `store` 只保留表结构与向量读写；`infra/paths.py` 的可重建清单补 `runtime`。
+- **v1 不做用户自带后端**：只支持内置后端；custom worker 留到以后的插件体系，v1 只保留接口位置，
+  不承诺协议稳定。
+
+### 接入方式
+
+- **标准接入流**：本地模型与外部提供商共用 `ProviderConfig` / `LLMModel` / 模型选择器 / fallback /
+  角色绑定；差别只在 transport——外部是 `sdk` / `httpx`，本地是 `local`（IPC 到 worker）。
+- **决策模型是例外**：不参与 chat 的模型选择 / 角色绑定，只投影成决策 provider，
+  由 `decision.toml` 的 `provider_id` 选择。
+- **专用管理面**：下载、运行时安装、worker 生命周期、GPU / VRAM、加载 / 卸载由本地模型管理器负责；
+  配置写 `data/config/inference.toml` / `data/models/` 下的 manifest，**不写 `providers.toml`**；
+  启动 / 装配时投影成内存里的 provider 条目。
+- **不设本地特权通道**：引擎不按「本地 / 远端」分支，只按 transport 分支；`base_url` / `api_key_env`
+  对本地为空，不伪造。
 
 ### 目录
 
@@ -82,16 +115,25 @@ data/runtime/
 
 | 层 | 字段要点 |
 |---|---|
-| `model` | id、显示名、上游仓库、license、`verified`、备注；「同一模型单实例」按这层判定 |
+| `model` | id、显示名、上游仓库、license、`verified`、备注、能力（chat / duplex / decision / embedding / tools / vision / audio）；「同一模型单实例」按这层判定 |
 | `artifact` | id、model_id、格式（gguf / safetensors / onnx）、量化、文件清单（path / sha256 / size）、`min_vram_mb` |
 | `backend` | `llama_cpp` / `vllm_omni` / `onnx_runtime`；由格式决定，可多个 |
 | `runtime` | Python 版本 + wheel 变体 + 后端包版本 |
 
 ### 能力来源
 
-1. 模型文件元数据：HF `config.json`、GGUF header、ONNX 输出形状；
+1. 模型文件元数据：HF `config.json`（decision 模型看 `DecisionConfig` / `model_type: jev`）、
+   GGUF header（含 decision 元数据与模板）、ONNX 输出形状；
 2. 下载源 API：license、`base_model`、语言、gated 状态、文件体积；
-3. 后端声明：该后端能提供 tools / duplex / multi-session / 流式中的哪些。
+3. 后端声明：该后端能提供 chat / duplex / decision / tools / multi-session / 流式中的哪些。
+
+**决策模型的门槛**：必须带 decision 元数据（GGUF decision 头；HF `DecisionConfig` 仅作识别依据）；
+**v1 本地只承诺 llama.cpp 的 decision GGUF**，HF 原生模型是否转 GGUF / 加后端由 T10 验证。
+普通 chat 权重 / chat GGUF 不能声明 `decision` 能力（Transformers 的 `--decision-config` 提示式包装
+不是原生校准，v1 不用）。`llama.cpp` 只对 decision GGUF 提供 `/v1/systemone` 语义，
+`llama-cpp-python` 是否暴露对应入口**未验证**；绑定层技术选型在 T10 spike 里定
+（候选：`xllamacpp` 的 `handle_systemone()`；若与 chat 绑定冲突，再决定是否拆独立 runtime，
+不把冲突带进 chat）。
 
 加载后**探测校正**实际值（可用上下文、实际 `max_sessions`、pooling 是否生效），不一致记日志并以实际值为准。
 
@@ -128,11 +170,16 @@ data/runtime/
 生命周期 load / loaded / unload / unloaded / ping / pong / shutdown
 chat   chat.start / chat.delta{seq, kind} / chat.end{finish_reason, usage}
        chat.cancel / chat.error{code, retryable}
+决策   decision.decide{req_id, state, questions} / decision.result{req_id, answers, usage}
+       decision.error{req_id, code, retryable}
 双工   duplex.open{instructions, voice, ref_audio} / duplex.opened
        duplex.audio_in{session, seq, pcm} / duplex.text_in
        duplex.text / duplex.audio_out{seq, pcm, rate} / duplex.event
        duplex.truncate{item_id, audio_end_ms} / duplex.close
 ```
+
+决策消息只传 `state` + `questions`，返回每个问题的类型、概率与 `confidence`，**不生成文本**；
+调用方按 `decision.toml` 的 `timeout_seconds` 取消，worker 不自行延长。
 
 ### 背压与取消
 
@@ -151,6 +198,7 @@ chat   chat.start / chat.delta{seq, kind} / chat.end{finish_reason, usage}
 | `model.*` | 不存在 / 校验失败 / 格式不符 | 不可重试 |
 | `device.*` | 无设备 / OOM | 可重试（降量化 / 换变体） |
 | `busy.*` | `session_limit` / `model_loading` | 可重试（带建议） |
+| `decision.*` | `not_supported`（普通 chat 权重）/ `invalid_question` | 不可重试 |
 | `duplex.*` | `text_unsupported` 等能力缺失 | 不可重试 |
 
 每条带 `code` / `message` / `retryable` / 可选 `detail`。
@@ -163,7 +211,8 @@ chat   chat.start / chat.delta{seq, kind} / chat.end{finish_reason, usage}
 
 ## 6. 双工适配
 
-> 模型事实见 `docs/process/v1.0.0-prep.md` §4.29；本节只写映射与时序。
+> **v1.0 不做本地双工**：本节保留为 v1.x 施工参考，v1.0 不实现；云端双工走
+> `docs/process/v1.0.0-prep.md` §4.28。模型事实见 `docs/process/v1.0.0-prep.md` §4.29。
 
 ### 内核事件
 
@@ -239,6 +288,7 @@ chat   chat.start / chat.delta{seq, kind} / chat.end{finish_reason, usage}
 
 - 全局默认模型 + 角色可设置自己的模型（实时切换）；未设置的角色用全局默认。
 - 不做「模型绑定角色」：同一本地模型被多角色指向时按多 session 共享，能力不够就 `model_busy`。
+- 决策模型不参与这套选择，由 `decision.toml` 的 `provider_id` 选（§4.12）。
 
 ### 状态机
 
@@ -254,6 +304,7 @@ available → installing → installed → loading → ready ⇄ busy → unload
 | 场景 | 行为 |
 |---|---|
 | chat | 请求串行 + 有界队列，满了返回 `busy.queue_full` |
+| 决策 | 请求串行；调用方已有节流 / 攒批，worker 不排队，超时直接失败并由调用方降级 |
 | 双工支持多会话 | 并行，上限 `max_sessions` |
 | 双工不支持多会话 | 第二路返回 `busy.model_busy`，带占用角色与建议 |
 
@@ -273,12 +324,23 @@ available → installing → installed → loading → ready ⇄ busy → unload
 | embedding | 0（常驻） |
 
 - 手动卸载任意状态可用；使用中弹二次确认并说明会中断当前回复。
-- 按 `auto_load` 预热；**embedding 必预热**。
+- 按 `auto_load` 预热；**embedding 必预热**；决策模型被 `decision.provider_id` 绑定时按显式加载处理，
+  不自动卸，未绑定则按需（10 min）。
 
 ## 8. embedding
 
 - provider 两类：`local`（本 worker，onnx_runtime 为主、openvino 可选）与 `remote`（OpenAI 兼容 HTTP）。
 - v1 实际只能走 worker（主进程 3.15 没有 onnxruntime wheel）。
+- **推荐默认**：`ibm-granite/granite-embedding-97m-multilingual-r2`（97M / 384 维 / 32K /
+  Apache-2.0；官方带 ONNX + OpenVINO 产物）。**Bekko a25m 不再推荐**，从推荐清单移除。
+- **质量档**：`granite-embedding-311m-multilingual-r2` 用 Matryoshka 截到 384 维（311M / 768 原生 /
+  32K / Apache-2.0），比 97M 高约 4.7 分，代价约 3 倍算力。
+- **同尺寸替代**：`harrier-oss-v1-270m`（270M / 640 维 / MIT）质量更高但维度不同，要新表 / 迁移；
+  jina v5 nano 是 CC-BY-NC，许可证不合适；Qwen3-Embedding-0.6B CPU 太慢，暂不推荐。
+- **旧库直接删除（2026-11-17 定）**：现有 embedding 库只有测试数据，切换到 Granite R2 时
+  **删表重建、不做迁移**；迁移方法（库绑模型身份 + 影子表重建）保留，正式数据 / 换机时再用。
+- Granite 是 ModernBERT + CLS pooling，不是 Bekko 的 mean pooling；优先 raw ONNX Runtime
+  （worker 3.13 有 wheel）或独立 worker，不把 `optimum-intel` / `transformers` 冲突带进主 venv。
 - 库绑模型身份；多维度按库记录；换模型走影子表重建。
 - query / document 前缀与 pooling 由 artifact 声明，不按模型名硬编码。
 - 批大小 / 线程进 `inference.toml`；CPU 线程默认取核数一半、上限 8。
@@ -297,15 +359,20 @@ available → installing → installed → loading → ready ⇄ busy → unload
 | T7 | ~~`vllm_omni` 后端 + 双工适配~~ **延后到 v1.x**（本地双工不做） | — |
 | T8 | 调度（状态机、队列、预算、强制加载、空闲卸载） | T5 / T6 / T7 |
 | T9 | 页面数据接口（只给数据模型，页面由开发者设计） | T8 |
+| T10 | `decision` 能力（与 S11 联动）：catalog 元数据、worker 决策消息、绑定入口 spike（`llama-cpp-python` / `xllamacpp`）、页面徽章与测试 | T4 / T5 / T8 |
 
-T5 之后即可端到端试跑 chat；T6 决定 embedding 能否切换；T7 是唯一需要 GPU 的一步。
+T5 之后即可端到端试跑 chat；T6 决定 embedding 能否切换；T7 本地双工延后 v1.x，不阻塞 v1。
+T10 只做能力与托管链路，**不预置模型、不写推荐**；门控与 `decision.toml` 仍归 S11。
 
 ## 10. 测试
 
 - **mock 优先**：CI 全链路用 mock worker，不加载模型、不需要 GPU。
 - **契约测试**：同一套 schema 校验器对 mock 与真 worker 双跑，防协议漂移。
-- **GPU 集成**：跑 chat（llama.cpp）与双工（vLLM-Omni）各一条最短路径，标记为可选档位。
-- **性能基准**：记录加载耗时、首 token 延迟、embedding 单条延迟，只做趋势对比不作门槛。
+- **决策链路**：mock worker 跑通 `decision.decide → decision.result`（三类问题、概率归一、超时、错误码）；
+  真决策模型在选定模型后另加 integration 用例，**v1.0 不预置**。
+- **GPU 集成**：跑 chat（llama.cpp）一条最短路径；双工（vLLM-Omni）随本地双工延后 v1.x，
+  不阻塞 v1。真机用例标记为可选档位。
+- **性能基准**：记录加载耗时、首 token 延迟、embedding 单条延迟、决策单次延迟，只做趋势对比不作门槛。
 - **无 GPU 不假绿**：真机用例在无 GPU 时 `pytest.skip` 并写明原因。
 
 ## 11. 页面结构（2026-11-18 定稿方向）
@@ -320,7 +387,7 @@ T5 之后即可端到端试跑 chat；T6 决定 embedding 能否切换；T7 是�
 
 - 标题 + 右上动作：刷新 / 新建（加模型）
 - 模型列表：**卡片网格**，一张卡 = 一个模型
-  - 卡内：名称、类型徽章（普通 / 双工 / embedding）、当前文件与后端、状态行、两个圆形按钮
+  - 卡内：名称、类型徽章（普通 / 双工 / embedding / 决策）、当前文件与后端、状态行、两个圆形按钮
     （运行/停止、管理）
   - 状态行要能区分：未下载 / 已下载未加载 / 加载中 / 运行中 / 忙碌 / 卸载中 / 失败
 - 卡片之外、不占主区的三样：
@@ -334,18 +401,21 @@ T5 之后即可端到端试跑 chat；T6 决定 embedding 能否切换；T7 是�
 
 1. **来源三选一**：
    - 推荐模型：从内置清单选，程序自动处理文件与校验，用户不填路径
+     （**决策类型 v1.0 暂不预置推荐**，见 `v1.0.0-prep.md` §4.12；清单为空时该来源置灰 / 隐藏，只留下面两项）
    - 从网络下载：贴 HF / ModelScope 链接或仓库名；能取到上游 sha256 就自动校验
    - 从文件导入：选本地文件 → **弹窗声明风险**（会复制一份到 `data/models/`、原文件不动、
      本地文件通常没有上游校验、磁盘占用会翻倍）→ 确认后复制
-2. **类型**：普通大语言模型 / 全双工模型 / embedding（决定后续可用参数与后端）
+2. **类型**：普通大语言模型 / 全双工模型 / embedding / 决策模型（决定后续可用参数与后端）
 3. **文件列表**：同模型的多个文件都在这里（格式 / 量化 / 体积 / 能否在当前硬件跑 / 推荐标记），
    未下载的可直接下载；已下载的可选为「当前」
 4. **运行参数**：上下文、GPU 层数、线程（带默认值）
 5. **加载方式**：是否随启动自动加载
 6. **高级选项**（默认折叠）：手写启动 / 加载参数；开启前弹风险确认，写入后记日志
-7. **限制说明**：如「双工模式下不支持工具调用」
+7. **限制说明**：如「双工模式下不支持工具调用」「决策模型只做判定，不生成文本，也不进聊天」
+   「决策模型 v1 只支持 GGUF，HF 原生模型暂不支持」
 8. 动作：保存 / 下载 / 加载 / 卸载 / 删除 / 打开上游仓库
 9. embedding 类型额外一个动作：**设为默认**（知识库与记忆使用）
+10. 决策模型保存后投影成 provider 条目，出现在 `decision.toml` 的 `provider_id` 选择器里
 
 ### 设置弹窗
 
@@ -405,8 +475,8 @@ T5 之后即可端到端试跑 chat；T6 决定 embedding 能否切换；T7 是�
 
 ### 代码执行边界（硬规则）
 
-- **`trust_remote_code` 只由内置适配器携带**：MiniCPM-o 4.5 的官方 vLLM-Omni 启动命令带
-  `--trust-remote-code`，这是**推荐模型的固定适配参数**，不是给用户的通用权限。
+- **`trust_remote_code` 只由内置适配器携带**：v1.x 接本地双工时，MiniCPM-o 4.5 的官方
+  vLLM-Omni 启动命令带 `--trust-remote-code`，这是**推荐模型的固定适配参数**，不是给用户的通用权限。
 - 社区 / 自定义模型默认不开；模型管理页的**高级选项**允许用户手写启动参数（vLLM-Omni 是 CLI 参数，
   llama.cpp 是加载参数），默认折叠、开启需风险确认、写入后记日志。
 - 代价要写在页面：需要自定义代码的模型**不能装**，不做「我知道风险，放行」的开关。
@@ -435,19 +505,20 @@ T5 之后即可端到端试跑 chat；T6 决定 embedding 能否切换；T7 是�
 | 层 | 跑什么 | GPU | 进公共 CI |
 |---|---|---|---|
 | 单元 | 帧编解码、状态机、能力解析、预算判定 | 否 | 是 |
-| 契约 | mock worker 全链路（load / chat / 双工 / embed / unload）；schema 校验器对 mock 与真 worker 双跑 | 否 | 是 |
-| 真模型（无 GPU） | **只跑 embedding**：Granite 97M ONNX 走完整链路 | 否 | 是（integration 档） |
-| 真模型（GPU） | vLLM-Omni 双工最短路径 | 是 | 否 |
+| 契约 | mock worker 全链路（load / chat / decision / 双工 / embed / unload）；schema 校验器对 mock 与真 worker 双跑 | 否 | 是 |
+| 真模型（无 GPU） | **只跑 embedding**：Granite 97M ONNX 走完整链路；决策模型选定后再加 | 否 | 是（integration 档） |
+| 真模型（GPU） | vLLM-Omni 双工最短路径（v1.x，本地双工延后） | 是 | 否 |
 | 基准 | 加载耗时、首 token、embedding 单条延迟、ingest 吞吐 | 视情况 | 否 |
 
 ### 为什么 CI 只跑 embedding 真模型
 
-本地模型体系的目标是「本地优先」，而实际长期在本机跑的主要是 **embedding** 与**决策模型**；
+本地模型体系的目标是「本地优先」，而实际长期在本机跑的主要是 **embedding** 与（开启后的）**决策模型**；
 chat 与双工在个人机器上不一定常开。所以：
 
 - integration 档下载 Granite 97M ONNX（~400 MB）并缓存，跑：摄入 → 检索 → 换模型重索引的最小链路；
 - 断言：384 维、同文本同向量（容差内）、prefix / pooling 按 artifact 生效、`store` 侧经总线取到结果；
-- 决策模型（S11）复用同一套小模型 harness，届时再加一个真模型用例。
+- 决策模型（S11 / T10）复用同一套小模型 harness；**v1.0 暂不选定模型**（没实测过），CI 只跑 mock，
+  真模型用例等选定后再加，不进公共 CI。
 
 ### CI 档位（对齐现有 `ci.yml`）
 
@@ -515,6 +586,7 @@ chat 与双工在个人机器上不一定常开。所以：
 | 执行框架 | **推理后端**（llama.cpp / vLLM-Omni / ONNX Runtime） | 引擎 |
 | 装好的后端 | **运行时**（含 CPU / CUDA / ROCm 变体） | 环境 / venv |
 | 正在跑的模型 | **运行中** | 已加载实例 |
+| 只做判定的模型 | **决策模型**（只做判定，不生成文本） | 判定模型 / 分类器 / 小模型 |
 
 按钮与状态：
 
@@ -534,6 +606,7 @@ chat 与双工在个人机器上不一定常开。所以：
 | `busy.queue_full` | 排队已满（{n} 条），这条没有提交。稍后再试。 |
 | `device.oom` | 显存不够：需要 {need} MB，现有 {free} MB。可以降一档量化、换后端，或先卸载别的模型。 |
 | `runtime.broken` | 运行时损坏（{backend} {version}）。重新安装可以修好。 |
+| `decision.not_supported` | 这个模型没有决策能力，不能当决策模型用。请换一个带决策能力的模型。 |
 | `model.checksum` | 下载校验没通过，文件可能不完整。重新下载。 |
 | 无 GPU | 当前只能用 CPU 推理，速度会慢一些。 |
 | 离线模式 | 离线模式：不会自动下载运行时和模型。 |

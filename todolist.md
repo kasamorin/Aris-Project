@@ -4,6 +4,8 @@
 
 - [] Bug fix
 - [] WebUI重整，分为Dashboard与WebChat
+- [] WebUI 侧栏菜单清单（导航项与分组；等开发者给清单，代码只先做外壳与分组容器）
+- [] WebUI 关于页（功能与彩蛋表已定，见 `docs/process/v1.0.0-prep.md` §4.23；布局等开发者画图）
 - [x] 宣布项目公开
 - [] 基于MyGO框架的GUI
 - [] 对于发行版进行软件包打包（GUI 之后；v1：进源只走 AUR 的 `aris-project`，deb 与 Gentoo ebuild 只挂 Release / 本地 overlay）
@@ -29,10 +31,10 @@
 - [] autorun自动任务
 - [] 消息平台连接（v1 做 Matrix；OneBot 暂不做）
 - [] 多模态、全模态模型支持（v1.x 的「多模态全双工」见本文件第 30 条）
-- [] 本地模型支持与本地模型页（v1.0；本地模型 = Aris 管理、CMCB 直连、不走 HTTP；chat / 双工受管子进程 + IPC；chat llama.cpp / 双工 vLLM-Omni 隔离 3.13 / embedding 大改且模型可换；细节待统一商议，见 `docs/process/v1.0.0-prep.md` §4.29 / §7-61；**界面由开发者设计**）
+- [] 本地模型支持与本地模型页（v1.0 做 chat + embedding + decision；决策模型托管但暂不推荐模型，本地双工延后 v1.x；施工见 `docs/process/v1/S5-local-inference.md`，契约见 `docs/process/v1.0.0-prep.md` §4.29；**界面由开发者设计**）
 - [] embedding 推荐默认切换为 `granite-embedding-97m-multilingual-r2`（384 维；Bekko a25m 不再推荐；311M@384 质量档；**旧库直接删除、不做迁移**——目前只有测试数据；需实测 CPU 延迟 / ONNX vs OpenVINO / 重索引；契约见 §4.6 / §4.29）
-- [] 双工协议适配层（v1.0：OpenAI Live / OpenAI Realtime / vLLM-Omni 本地隔离运行时；Gemini Live 留 v1.x；契约见 `docs/process/v1.0.0-prep.md` §4.28）
-- [] 决策模型支持（自主回复 / 自主操作门控；不做主模型兜底，密集消息攒批）
+- [] 双工协议适配层（v1.0 只做 **GPT-Live-1** 云端原生双工，mock / 契约测试；OpenAI Realtime / 本地 vLLM-Omni / Gemini Live 留 v1.x；契约见 `docs/process/v1.0.0-prep.md` §4.28）
+- [] 决策模型支持（自主回复 / 自主操作门控；远端 + **Aris 托管本地决策模型**，标准 `/v1/systemone`；不做主模型兜底，密集消息攒批；**暂不推荐具体模型（未实测）**；契约见 `docs/process/v1.0.0-prep.md` §4.12，本地落点见 `docs/process/v1/S5-local-inference.md` T10）
 - [] v1.x：借鉴 SurfCore（Mieksido/surfcore，v1.0 之后到 v2 之前，不进 v1.0 核心决策）
 - [] v1.x：主管理员账户（人格化管理员提示注入）
 - [] v1.x 评估：生活化主动联系（状态/日程/关系 → 行为候选；v1.0 的主动联系只走 autorun + 决策模型）
@@ -57,7 +59,7 @@
 - [] 从zip导入skills
 - [x] 切换项目许可证为AGPL
 - [x] 增加只在develop发布的alpha-渠道
-- [] 彩蛋
+- [] 彩蛋（外链表形态已定，见 `docs/process/v1.0.0-prep.md` §4.23；S14）
 - [p] 模块开关&工具开关
 - [] 取消models.dev获取元信息，直接从提供商获取（以及参考astrbot）
 - [x] 将项目名正式修改为Aris Project(与Project AIRI作出区别),并将项目移入Github组织
@@ -263,7 +265,9 @@
     纯音频双工模型（市面上多数双工模型是多模态甚至只有音频）。
     三条路线长期并存，不是替代：①独立 STT → LLM → TTS（半双工，纯文本模型的唯一路径）；
     ②**手动模拟全双工**（取消当前请求 + 带新输入重发）；③**原生全双工**（模型侧同时收发）。
-    **待议**：文本双工走模拟还是原生、插话时当前输出怎么处理、v1 是否必须接一个真实原生双工提供商。
+    **已定（2026-11-18）**：v1 只接 **GPT-Live-1** 云端原生双工（client delegation，Aris 跑
+    agent / 记忆 / 工具）；文本仍走半双工 chat；打断、播放确认与落库口径见
+    `docs/process/v1.0.0-prep.md` §4.28；只做 mock / 契约测试，发布标「未真机验证」。
 31. **v1.x：修复阈值总结导致的对话不连贯**：上下文到阈值时 compact 把旧历史换成摘要，语感会断；
     v1.0 接受这个代价，v1.x 再找更好的方案（例如滚动摘要、分层摘要、只压工具输出等）。
 32. **行为文档（v1.x，人类向）**：每个模块「做什么、暴露什么服务 / 事件、何时触发、有什么副作用」，
@@ -379,14 +383,14 @@
 47. **多角色同时运行（基本保留，只补全双工适配）**：2026-11-08 定案基本不动
     （独立会话 + 串行队列、音频不 ducking、互相注入、每角色绑模型），见
     `docs/process/v1.0.0-prep.md` §4.8。**WebChat 群聊暂不做、暂不设计（2026-11-17 定）**；
-    消息平台群聊本来就不在本次范围。本轮只设计**全双工模型适配**：同一模型单实例；
-    `supports_multi_session` 决定多会话；**v1 不对单会话双工模型排队**，不支持就 `model_busy`。
+    消息平台群聊本来就不在本次范围。全双工适配 v1 只做 **GPT-Live-1**，契约见
+    `docs/process/v1.0.0-prep.md` §4.28；**本地双工整体延后 v1.x**，本地模型（chat / embedding / decision）
+    见 §4.29 / `docs/process/v1/S5-local-inference.md`。
     **不为每个角色单独微调模型**：人格靠 prompt.md + per-session instructions，音色靠 voice / ref_audio。
-    模型选型：**MiniCPM-o 4.5 为推荐 / 已适配**（上游验证真双工、无工具、16 会话；本机未真机跑）；允许用户添加其他模型，
-    **Gander / Realtime-Venus 留作备选**（需各自 backend，未验证）。Qwen3-Omni 有工具但非原生双工；
-    Nemotron 真双工 + 工具待验证；MiniCPM-duplex 是 2024 文本研究原型。
-    **普通 chat 模型同样允许用户添加**；模型目录面向 chat / duplex / embedding，不是双工专用。
-    本地模型接入流已定：标准接入流 + 专用管理面（§4.29）。
+    v1.x 本地双工选型备份：MiniCPM-o 4.5（真双工、无工具）、Gander / Realtime-Venus（需各自 backend，
+    未验证）；Qwen3-Omni 有工具但非原生双工；Nemotron 真双工 + 工具待验证；MiniCPM-duplex 是 2024
+    文本研究原型，不作运行时。
+    **普通 chat 模型同样允许用户添加**；模型目录面向 chat / embedding / decision（本地 duplex 目录预留到 v1.x）。
 48. **发布前补齐协作文档与模板（S14）**：`CONTRIBUTING.md` / `SECURITY.md` 正文、Issue / PR 模板；
     CODEOWNERS 与 Dependabot 按需要再定（个人项目可选）。流程本体（CI 三档、rulesets 必需检查、
     hooks、release 脚本）已具备，缺的只是文档与模板。

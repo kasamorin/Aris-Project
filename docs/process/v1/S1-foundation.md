@@ -55,7 +55,47 @@
   - **剩余要求**：包 `__init__` 仍会拉重依赖（FastAPI / LLM engine / TUI），单进程全量 import
     实测约 +0.5~0.8s；S1 只要求不连库、不联网，不优化这部分耗时。
   - 防漂移：AST 测试扫 `@config_file(` 的宿主模块，必须都在 `CONFIG_MODULES` 里。
-- **tab / section id（2026-11-07 定）**：一律**英文 slug**（`chat` / `models` / `memory` /
+
+**声明形态**：元数据**贴在 dataclass 字段上**（`Annotated`），默认值就是 dataclass 默认值，
+不在别处再抄一份。对比 AstrBot 的 `CONFIG_METADATA` + `DEFAULT_CONFIG` 两棵树——它要渲染任意
+嵌套结构，多一份默认值值得；我们已把结构化配置分出去（走专用页面），不需要为嵌套付漂移成本。
+
+```python
+from typing import Annotated
+
+from aris.infra.config_items import Item
+
+
+@dataclass
+class SearchConfig:
+    results_count: Annotated[int, Item(section="search", min=1, max=20)] = 5
+    timeout_seconds: Annotated[float, Item(section="search", min=1.0, max=120.0, step=0.5)] = 15.0
+```
+
+**`Item` 字段**（`—` = 自动推导）：
+
+| 字段 | 默认 | 说明 |
+|---|---|---|
+| `key` | 自动 | `<toml 主名>.<字段名>`（嵌套表加前缀）；CLI / 前端 / 审计共用这一个 id |
+| `file` / `scope` | 自动 | 由「dataclass ↔ 文件」注册表给出；`scope` **按文件**定（profile / global，见 prep §3.2） |
+| `type` / `default` / `choices` | 自动 | 类型从注解推；注解是 `StrEnum` 就直接出下拉 |
+| `label` / `desc` | 自动 key | `config.<key>.label` / `.desc`；文案进 `locales/`，代码里不写中文 |
+| `category` / `section` | 见分类映射 / — | `category` 是分类 tab（默认取文件→tab 映射，prep §3.3.1），`section` 是 tab 内的小标题 |
+| `control` | 自动 | `text / textarea / number / switch / select / path / color`，可手写覆盖 |
+| `apply` | `restart` | `hot` 仅在**属主模块提供 `reload()`** 时允许，否则一律 `restart` |
+| `required` | `false` | 留空即错误（走配置项字段语义） |
+| `auto_empty` | `false` | 留空 = auto（请求里不传该字段） |
+| `secret` | `false` | 前端脱敏显示 |
+| `hidden` | `false` | 不进设置页，CLI 仍可见 |
+| `min` / `max` / `step` / `pattern` | — | 数值 / 字符串校验 + 控件参数 |
+| `condition` | — | `{同文件另一个键: 期望值}`，不满足则整项不渲染 |
+| `section_condition` | — | 段级条件，形状同 `condition`；不满足则**整个 section 不渲染**。同段字段取值必须一致，一致性由测试校验 |
+| `collapsed` | `false` | 所在 `section` 默认折叠（同 section 取「或」）；只影响展示，不影响取值。**按冷门程度用，不按长度用**（prep §3.3.2） |
+
+**两条自动检查**（防漂移）：每条 item 都有 `label` / `desc` 译文，缺了测试失败；
+`config.items` 返回的条目与 dataclass 字段**一一对应**，多写少写都失败。
+
+- **tab / section id（2026-11-07 定）**：一律**英文 slug**（`chat` / `models` / `decision` / `memory` /
   `knowledge` / `storage` / `network` / `logs` / `ui`）；显示名走 i18n
   （`config.tab.<id>` / `config.section.<id>`），id 不随语言变。
 - **label / desc 命名空间（2026-11-07 定）**：新增 `config` 命名空间；键用**扁平点号**
@@ -262,7 +302,7 @@ S1 不碰这块。
 3. **模块关闭时的 `config.items`**：仍列出并标注「模块已关闭」，因此走独立的 `load_all()`。
 4. **旧文档清理**：不在 S1，改为「想起来再做」（§10.1）。
 5. **外部组件清单**（2026-11-06）：`src/aris/infra/components.py`，**Python 常量**（不用 TOML），
-   v1 只收 **PG + embedding**，排在 **S1**；用户镜像覆盖方向定「允许」但细节待议（§7-28）。
+   v1 只收 **PG + embedding**，排在 **S1**；用户镜像覆盖细节见 §7-28。
 6. **i18n 不做 `--lang`**（2026-11-07）：语言来源 = 进程环境 `ARIS_LANGUAGE` > `settings.toml` 的
    `language` > `auto`；`auto` 按 POSIX 顺序读 `LC_ALL` → `LC_MESSAGES` → `LANG`，`zh` 开头 →
    `zh-CN`，其它（含全未设置）→ `en`。S1 的 en 只覆盖 CLI，WebUI / 配置项文案留 S14。

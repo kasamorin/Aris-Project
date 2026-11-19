@@ -99,26 +99,13 @@
   ④ TruE 命名放弃。契约见 §4.4、§4.7、§4.27 ⑬。
 - **双工会话进 v1.0（2026-11-16 范围变更）**：双工是**独立品类**（连续输入 + overlap 决策 + backchannel），
   不是给 chat 模型套壳；v1.0 落地双工会话本体（文本为主、按模型能力带音频），独立 STT / TTS 链路留 v1.x。
-  协议适配层 v1 做 OpenAI Live（GPT-Live）/ OpenAI Realtime / vLLM-Omni（本地隔离运行时），
-  Gemini Live 留 v1.x；架构为**共享内核、只换调度层**。契约见 §4.28，待定项见 `todolist.md` #30。
-- **本地模型体系（2026-11-16）**：本地模型 = Aris 自己管理、经 CMCB 直连、不走 HTTP 的模型；
-  LM Studio / Ollama 即使同机也属外部提供商。chat / 双工统一走**受管子进程 + IPC**
-  （Unix socket + msgpack，不开 TCP），主进程保持 Python 3.14；
-  chat 用 llama.cpp worker，双工用 vLLM-Omni 隔离 Python 3.13 worker（`DuplexOmni`，不起
-  `vllm serve`），embedding 一并大改且模型可由用户更换、Aris 只给推荐。
-  **普通 chat 模型同样允许用户添加**；模型目录面向 chat / duplex / embedding，不是双工专用。
-  **同一个模型同时只运行一个实例**；多角色 / 多会话复用该实例，能否并行按模型能力协商
-  （如 vLLM-Omni 的 `supports_multi_session`）；**v1 不对单会话双工模型排队**，不支持就
-  `model_busy`。接入方式为标准接入流 + 专用管理面（`kind = "local"` 的 provider + 独立本地管理器）。
-  本地双工按模型能力声明，
-  vLLM-Omni 为音频优先（纯文本输入不支持）。本机无可用 GPU，本地双工只能 mock / 契约测试，
-  端到端需 GPU 机器。**验收口径：先实现 + mock / 契约测试，发布说明标注「未真机验证」，
-  端到端等有 GPU 的机器 / 用户反馈再补**。细节待统一商议（§7-61），页面由开发者设计。契约见 §4.29。
-- **本地双工模型事实（2026-11-17 核实）**：MiniCPM-o 4.5 真双工（`model_native_duplex`）但无工具，
-  **作为推荐 / 已适配项**（上游验证真双工；本机无 GPU，未真机跑）；模型不锁死，允许用户添加，
-  Gander / Realtime-Venus **留作备选**（需各自 backend，未验证）。
-  Qwen3-Omni 有工具但非原生双工（vLLM-Omni deploy 明确写 concurrent input / interruptible VAD turns）；
-  Nemotron VoiceChat 宣称真双工 + 工具但集成待验证；MiniCPM-duplex 是 2024 文本研究原型。
+  协议适配层 v1 只做 **GPT-Live-1**（client delegation）；OpenAI Realtime / 本地 vLLM-Omni /
+  Gemini Live 全部留 v1.x；架构为**共享内核、只换调度层**。契约见 §4.28。
+- **本地模型体系（2026-11-16，2026-11-18 收窄，2026-11-20 补 decision）**：v1 做本地 chat（llama.cpp）
+  + embedding + 决策模型（Aris 托管、暂不推荐具体模型），本地双工延后 v1.x；接入流、worker、调度、
+  页面与验收见 `docs/process/v1/S5-local-inference.md`，契约见 §4.29 / §4.12。
+- **本地双工选型（v1.x 备份，2026-11-17 核实）**：MiniCPM-o 4.5 真双工但无工具；Qwen3-Omni
+  有工具但非原生双工；Nemotron / Gander / Realtime-Venus 待验证。v1.0 不启用，记录见 §4.28。
   Aris 不为每个角色单独微调模型，同一模型多 session + per-session instructions / voice。
 - **embedding 推荐默认改 Granite R2（2026-11-17）**：`granite-embedding-97m-multilingual-r2`
   （97M / 384 维 / 32K / Apache-2.0）作为推荐默认；**Bekko a25m 不再推荐**；
@@ -148,7 +135,9 @@
 - **双工入口与成本（2026-11-18）**：WebChat 内切换语音 / 文本，启动弹实验性警告、默认文本；
   只显示通话时长，`duplex.remind_every_min` 控制周期提醒（默认 0）。语音里工具不确认（非 agentic，
   现有工具也没有改写 / 删除能力）。上下文分两层：后端复用现有 compact；Live 会话过长则新建并用摘要 seed。
-- **思考链 / Reasoning 定型（2026-11-18）**：落库（messages 加 `reasoning_content` 列，不参与检索 / 查找）；compact 时思考链不参与摘要、直接丢弃（对齐 AstrBot）；**不发明统一档位抽象**——模型元信息存提供商原样 `thinking.efforts` 档位表，角色 / 模型配置填原样值、请求原样透传；`thinking_default` 改为档位字符串 | None；硬约束：DeepSeek 带 tools 必须回传 `reasoning_content`、Anthropic thinking 块带 signature；提供商差异表按官方文档逐条核实（OpenAI 七档 / DeepSeek thinking+reasoning_effort / Anthropic adaptive 替代已废弃 budget_tokens）。批次落点 S6 / S7 / S8。契约见 §4.3.1。
+- **思考链 / Reasoning 定型（2026-11-18，2026-11-19 改全局回传策略）**：落库两列、
+  compact 丢弃、档位透传、回传形状按 API 协议、缺失文本全局 `placeholder` / `empty` 可配。
+  契约与细节见 §4.3.1；批次落点 S6 / S7 / S8。
 - **联网搜索与实验室 tab（2026-11-18）**：内置 Tavily / Exa 改为**可删除**（Bing / `auto` 仍不可删）；设置页新增**实验室 tab**——合成 tab，配置项标 `experimental=True` 自动归入、原 tab 仍可见，不做 `lab.toml`；UI 设计任务单 `docs/process/assets/ui-design-tasks.md`（14 页面 + 通用元素）已写，草图待开发者。
 - **双工归 S7（2026-11-18）**：双工适配器并入 S7（LLM 重构 + 统一连接），作为第三种传输形态；
   GPT-Live 不收图，用户发图复用 §4.2 的图片转述管线（默认关、按图缓存、模型可配）。
@@ -157,7 +146,7 @@
   同一时刻只允许一个双工会话，多角色语音等 WebChat 群聊再议；语音层 $0.05/分钟另计。
 - **范围收窄（2026-11-18）**：本地推荐只留 embedding；chat 不做本地推荐（用户可自行添加）；
   **本地双工整体延后到 v1.x**（没有开源模型同时满足真双工 + 工具 + 中文 + 可用硬件）。
-  v1.0 双工只做云端适配器（OpenAI Live / OpenAI Realtime），重点放在记忆与工具跑通。
+  v1.0 双工只做云端 GPT-Live，重点放在记忆与工具跑通；契约见 §4.28。
 - **双工不接收文本输入（2026-11-18 核实，仅指本地 model-native）**：双工会话只收音频（omnimodal 再加视频），
   `input.text.append` 被协议拒绝；模型本身支持文本，但走轮次模式（同服务 `/v1/chat/completions`）。
   v1 不让双工模型兼作文本 chat。
@@ -182,8 +171,8 @@
   下载默认走 **ModelScope**（可切 HF）；mypy v1.0 不扩；错误文案、设置弹窗区块入档；
   `playback_lag_limit_ms` 改属 `duplex.toml`（双工走云端，不再归 inference）。
 - **本地推理施工文档已写（2026-11-17）**：`docs/process/v1/S5-local-inference.md`——协议帧与消息族、
-  运行时安装 / 蓝绿切换、调度状态机与预算、双工事件映射与时序、DoD 与 T1–T9 任务拆解；
-  批次编号待定，定了改名。prep 只留决策与指针。
+  运行时安装 / 蓝绿切换、调度状态机与预算、双工事件映射与时序、DoD 与 T1–T10 任务拆解
+  （T7 延后 v1.x）；批次编号已定 S5，prep 只留决策与指针。
 - **embedding 收尾（2026-11-17 定）**：provider 分 local（worker）/ remote（OpenAI 兼容）；
   v1 只能走 worker；**取消「冷侧 BGE-M3」**，改由「检索结果少于 8 条隐藏」承接（落点在
   memory / knowledge）；prefix 与 pooling 由 artifact 声明；预热失败降级不挂 serve。
@@ -191,7 +180,7 @@
 - **v1 打包范围加入 Gentoo ebuild（2026-11-13）**：v1.0 出 Arch 包 + deb + Gentoo ebuild（x86_64），
   其中 ebuild 含 GUI 源码构建（`dev-lang/go` + `go-module.eclass`）。主树已有 `dev-python/uv`，
   ebuild 不内置 uv；但该包默认 `python-downloads = "manual"`，首启 wrapper 必须先显式
-  `uv python install 3.14` 再 `uv sync`。**不做真机 `emerge` 验证**（只做 `pkgcheck scan` 等静态校验，
+  `uv python install 3.15` 再 `uv sync`。**不做真机 `emerge` 验证**（只做 `pkgcheck scan` 等静态校验，
   发布说明标注未验证）；仓库只放单包 ebuild 目录 `packaging/gentoo/sci-ml/aris-project/`，不维护 overlay。
 - **分发渠道（2026-11-13）**：GitHub Releases 是唯一真相源（源码 tarball + `.deb` + `.pkg.tar.zst` +
   `SHA256SUMS`），**不自建二进制仓库**——**进源只走 AUR**（`aris-project`）；Gentoo 与 deb 都不进任何源
@@ -201,6 +190,9 @@
   代码仍叫 `memory`，界面导航仍叫「记忆」（2026-11-16 由 APEMS 改名）。
 - **插件系统整体推迟 v1.1**，v1.0 不做也不预留接口；草案移到 `docs/process/v1.1-plugin-system.md`。
 - **决策模型去掉 `main_llm`**：只保留 `off | dedicated`，失败降级到概率 / 规则；消息密集时先攒批再判。
+- **决策模型本地运行定为 Aris 托管（2026-11-20）**：本地决策模型进本地模型页（下载 / 加载 / 卸载），
+  与远端共用标准 `/v1/systemone` 适配器；**暂不推荐具体模型**（还没在中文群聊门控上实测），
+  `decision.mode` 默认 `off` 不变；契约见 `docs/process/v1.0.0-prep.md` §4.12，施工见 S5 T10。
 - **记忆**：重要性由抽取时模型标注（`importance ≥ 0.8` → 「重要」预设，weight 2048、直接常驻）；
   真实命中只续命（重置 `last_reinforced_at`、累加 `hit_count`，不改 weight）；中期在 30 天内
   ≥5 个不同自然日命中的晋升长期（止步于长期）；兜底检索 / 随机回忆不写库。
@@ -303,10 +295,10 @@
   安装目录 `/usr/share/aris-project/`、`/usr/lib/aris-project/`，命令仍 `arisp` / `arisp-gui`
   （`aris` 被 GNU Aris 占用）。首启下载 ≈ CPython 73 MB + 基础依赖（装好 129 MB）+ PG 约 40 MB，
   本地 embedding 按需再补 1.5 GB。详见 §4.15。
-- **Python 钉 3.14（2026-11-06）**：仓库根加 `.python-version` = `3.14`。原 `requires-python >=3.14`
-  会让 uv 选到 3.15，而 `pydantic-core` / `jiter` 无 cp315 轮子 → 转源码编译。
-  **暂不升 3.15**：`openvino` / `openvino-tokenizers` 任何版本都没有 cp315 wheel（C++ 扩展），
-  其余依赖已就绪；等 OpenVINO 出新版再整体升。
+- **Python 版本（2026-11-06 定 3.14，2026-11-17 改为 v1.0 目标 3.15）**：当前代码仍是
+  `.python-version` = `3.14`；v1.0 目标 **3.15**，embedding 改走独立 worker（3.13）后
+  `openvino` / `onnxruntime` 无 cp315 wheel 不再阻塞主进程。切换随 S5 / S13 落地，
+  同时改 `.python-version`、`requires-python` 与 CI，**文档不提前宣称已升级**。
 - **旧文档集中清理不绑阶段**（2026-11-04 定），见 `v1.0.0-prep.md` §10.1。
 - **S13 施工文档已写（2026-11-06）**：`docs/process/v1/S13-packaging.md`——产物与命名、安装布局、
   首启启动器（环境变量 + stamp 重同步 + 失败处理）、PKGBUILD / deb 要点（含 trixie 的
@@ -347,7 +339,7 @@
 | `serve/` | 完成：`aris serve` 一条命令起全套；唯一组装根 |
 | `webui/` | 完成：鉴权 / 仪表盘 / 审计 / 提供商 / 技能 / 配置 / 日志 / 知识库；配置页体验待重做 |
 | `memory/` | v1 P4 开工（对外名 **AMS**）；契约已按 2026-11-03 决策更新（见 `docs/forAiDoc/MEMORY.md`） |
-| 本地模型体系（待建） | 方案已定：受管子进程 + IPC；chat llama.cpp / 双工 vLLM-Omni 隔离 3.13 / embedding 大改；细节见 §7-61。**范围收窄（2026-11-18）**：本地推荐只留 embedding、本地双工延后 v1.x，本地推理并入 S5 |
+| 本地模型体系（待建） | v1 做本地 chat + embedding + decision（决策托管、暂不推荐模型），本地双工延后 v1.x；施工见 `docs/process/v1/S5-local-inference.md`，契约 §4.29 / §4.12 |
 | `voice/` | 占位：STT / TTS 选型未定 |
 | `autorun/` | 方向已定，暂不实现（只留设计） |
 
