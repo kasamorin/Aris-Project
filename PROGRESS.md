@@ -11,7 +11,12 @@
 
 ## 当前阶段
 
-**v1.0「跨越」开发周期已启动**（`alpha-v0.4.6`），已进入施工：S1 从外部组件清单开始落代码，其余批次先收敛文档与决策。
+**v1.0「跨越」开发周期已启动**（`alpha-v0.4.6`），当前处于**开工前准备**：先收口模块特有细节、
+用户可设置项与开发者输入，再按依赖与关键路径重评施工顺序；S1 已落外部组件清单等部分地基。
+
+- **开工前设计项推进（2026-11-20）**：#38 LLM 连接架构已定稿（单层 provider、`provider/model` 引用、
+  id 稳定、全局单链 fallback、决策 / 全双工 / 本地投影各自独立），契约与施工文档已落；
+  余下 #36 模块特有细节、用户可设置项清单、开发者输入，完成后再重评 S1–S14 顺序。
 
 - **v1 未定事项已收口（2026-11-08）**：S1/S2、S9 消息平台、S10 记忆与角色、S12 知识库与
   skills、S14 收尾、fallback 口径与 core 优化范围全部拍板并写回 `docs/process/v1.0.0-prep.md`
@@ -169,7 +174,7 @@
   GPU 探测只作闸门、不落盘；离线模式禁自动下载。
 - **S5 定名与收尾（2026-11-18）**：本地推理并入 **S5**，文档改名 `docs/process/v1/S5-local-inference.md`；
   下载默认走 **ModelScope**（可切 HF）；mypy v1.0 不扩；错误文案、设置弹窗区块入档；
-  `playback_lag_limit_ms` 改属 `duplex.toml`（双工走云端，不再归 inference）。
+  `playback_lag_limit_ms` 改属 `full_duplex.toml`（双工走云端，不再归 inference）。
 - **本地推理施工文档已写（2026-11-17）**：`docs/process/v1/S5-local-inference.md`——协议帧与消息族、
   运行时安装 / 蓝绿切换、调度状态机与预算、双工事件映射与时序、DoD 与 T1–T10 任务拆解
   （T7 延后 v1.x）；批次编号已定 S5，prep 只留决策与指针。
@@ -193,6 +198,11 @@
 - **决策模型本地运行定为 Aris 托管（2026-11-20）**：本地决策模型进本地模型页（下载 / 加载 / 卸载），
   与远端共用标准 `/v1/systemone` 适配器；**暂不推荐具体模型**（还没在中文群聊门控上实测），
   `decision.mode` 默认 `off` 不变；契约见 `docs/process/v1.0.0-prep.md` §4.12，施工见 S5 T10。
+- **LLM 连接架构定稿（2026-11-20）**：**provider = connection（单层）**，`api_format` 放 provider 层；
+  模型引用统一 `provider/model`；provider / 模型 id 创建后不可改，删除前查引用并默认拒绝；
+  fallback 只保留顶层一条链；本地固定投影为 `local`；决策 `decision.model`、全双工
+  `full_duplex` / `openai_live` 各自独立。旧 `providers.toml` 不迁移，`llm check` 报错并给新格式示例。
+  契约见 §4.2 / §3.9，施工见 `docs/process/v1/S7-llm-connection.md`。
 - **记忆**：重要性由抽取时模型标注（`importance ≥ 0.8` → 「重要」预设，weight 2048、直接常驻）；
   真实命中只续命（重置 `last_reinforced_at`、累加 `hit_count`，不改 weight）；中期在 30 天内
   ≥5 个不同自然日命中的晋升长期（止步于长期）；兜底检索 / 随机回忆不写库。

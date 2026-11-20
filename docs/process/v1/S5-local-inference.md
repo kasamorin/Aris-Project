@@ -25,7 +25,7 @@
 | 3 | GPU 变体受闸门约束 | 探不到 CUDA 时装 `cu124` 直接拒绝并给出可行变体；探测结果不写进配置 |
 | 4 | 模型下载可恢复 | 中断后续传；sha256 不符拒绝入库；`models list` 显示 model / artifact / backend / runtime 四层 |
 | 5 | worker 协议可 mock | 纯 Python mock worker 跑通 load / chat / decision / unload / ping；同一套 schema 校验器对 mock 与真 worker 双跑 |
-| 6 | 帧与错误码受控 | 超过 16 MiB 的帧被断开并记 `proto.frame_too_large`；`proto.*` / `worker.*` / `runtime.*` / `model.*` / `device.*` / `busy.*` / `decision.*` / `duplex.*` 各有触发用例 |
+| 6 | 帧与错误码受控 | 超过 16 MiB 的帧被断开并记 `proto.frame_too_large`；`proto.*` / `worker.*` / `runtime.*` / `model.*` / `device.*` / `busy.*` / `decision.*` / `full_duplex.*` 各有触发用例 |
 | 7 | ~~双工时序~~ **延后到 v1.x**（本地双工不做；云端适配器另立文档） | — |
 | 8 | 调度规则生效 | 同模型第二次 load 被拒；预算不足拒绝并列出可卸载项；**强制加载不记忆**（第二次仍拦）；空闲卸载按加载方式生效 |
 | 9 | embedding 可用且可换 | Granite 97M ONNX 在 worker 内产出 384 维；prefix / pooling 来自 artifact；`store.embed` 经总线取向量；预热失败只降级不挂 serve |
@@ -59,14 +59,15 @@
 ### 接入方式
 
 - **标准接入流**：本地模型与外部提供商共用 `ProviderConfig` / `LLMModel` / 模型选择器 / fallback /
-  角色绑定；差别只在 transport——外部是 `sdk` / `httpx`，本地是 `local`（IPC 到 worker）。
+  角色绑定；本地条目在装配时投影成固定 id `local` 的 provider，引用写 `local/<model>`。
+  与远端的差别由适配器承担——远端走 HTTP（`api_format`），本地走 IPC；配置文件里不写 `transport`。
 - **决策模型是例外**：不参与 chat 的模型选择 / 角色绑定，只投影成决策 provider，
-  由 `decision.toml` 的 `provider_id` 选择。
+  由 `decision.toml` 的 `model = "provider/model"` 选择。
 - **专用管理面**：下载、运行时安装、worker 生命周期、GPU / VRAM、加载 / 卸载由本地模型管理器负责；
   配置写 `data/config/inference.toml` / `data/models/` 下的 manifest，**不写 `providers.toml`**；
   启动 / 装配时投影成内存里的 provider 条目。
-- **不设本地特权通道**：引擎不按「本地 / 远端」分支，只按 transport 分支；`base_url` / `api_key_env`
-  对本地为空，不伪造。
+- **不设本地特权通道**：引擎不按「本地 / 远端」硬编码分支；两边都投影成同一种 provider 记录，
+  远端与本地适配器实现同一接口。`base_url` / `api_key_env` 对本地为空，不伪造。
 
 ### 目录
 
@@ -115,7 +116,7 @@ data/runtime/
 
 | 层 | 字段要点 |
 |---|---|
-| `model` | id、显示名、上游仓库、license、`verified`、备注、能力（chat / duplex / decision / embedding / tools / vision / audio）；「同一模型单实例」按这层判定 |
+| `model` | id、显示名、上游仓库、license、`verified`、备注、能力（chat / full_duplex / decision / embedding / tools / vision / audio）；「同一模型单实例」按这层判定 |
 | `artifact` | id、model_id、格式（gguf / safetensors / onnx）、量化、文件清单（path / sha256 / size）、`min_vram_mb` |
 | `backend` | `llama_cpp` / `vllm_omni` / `onnx_runtime`；由格式决定，可多个 |
 | `runtime` | Python 版本 + wheel 变体 + 后端包版本 |
@@ -125,7 +126,7 @@ data/runtime/
 1. 模型文件元数据：HF `config.json`（decision 模型看 `DecisionConfig` / `model_type: jev`）、
    GGUF header（含 decision 元数据与模板）、ONNX 输出形状；
 2. 下载源 API：license、`base_model`、语言、gated 状态、文件体积；
-3. 后端声明：该后端能提供 chat / duplex / decision / tools / multi-session / 流式中的哪些。
+3. 后端声明：该后端能提供 chat / full_duplex / decision / tools / multi-session / 流式中的哪些。
 
 **决策模型的门槛**：必须带 decision 元数据（GGUF decision 头；HF `DecisionConfig` 仅作识别依据）；
 **v1 本地只承诺 llama.cpp 的 decision GGUF**，HF 原生模型是否转 GGUF / 加后端由 T10 验证。
@@ -172,10 +173,10 @@ chat   chat.start / chat.delta{seq, kind} / chat.end{finish_reason, usage}
        chat.cancel / chat.error{code, retryable}
 决策   decision.decide{req_id, state, questions} / decision.result{req_id, answers, usage}
        decision.error{req_id, code, retryable}
-双工   duplex.open{instructions, voice, ref_audio} / duplex.opened
-       duplex.audio_in{session, seq, pcm} / duplex.text_in
-       duplex.text / duplex.audio_out{seq, pcm, rate} / duplex.event
-       duplex.truncate{item_id, audio_end_ms} / duplex.close
+双工   full_duplex.open{instructions, voice, ref_audio} / full_duplex.opened
+       full_duplex.audio_in{session, seq, pcm} / full_duplex.text_in
+       full_duplex.text / full_duplex.audio_out{seq, pcm, rate} / full_duplex.event
+       full_duplex.truncate{item_id, audio_end_ms} / full_duplex.close
 ```
 
 决策消息只传 `state` + `questions`，返回每个问题的类型、概率与 `confidence`，**不生成文本**；
@@ -184,9 +185,9 @@ chat   chat.start / chat.delta{seq, kind} / chat.end{finish_reason, usage}
 ### 背压与取消
 
 - 主进程 → worker 的 `audio_in` 用有界队列，满了**停发不丢帧**。
-- worker → 主进程的音频以 `duplex.event{name:"playback.ack"}` 为水位，未播完的音频不无限缓冲。
+- worker → 主进程的音频以 `full_duplex.event{name:"playback.ack"}` 为水位，未播完的音频不无限缓冲。
 - 取消按 `req_id` / `session_id` + `seq`；取消后 worker 停止生成并以 `finish_reason="cancelled"` 收尾。
-- **已发出的音频收不回**：由主进程发 `duplex.truncate` 截断播放（§4.28 硬约束 3）。
+- **已发出的音频收不回**：由主进程发 `full_duplex.truncate` 截断播放（§4.28 硬约束 3）。
 
 ### 错误码
 
@@ -199,7 +200,7 @@ chat   chat.start / chat.delta{seq, kind} / chat.end{finish_reason, usage}
 | `device.*` | 无设备 / OOM | 可重试（降量化 / 换变体） |
 | `busy.*` | `session_limit` / `model_loading` | 可重试（带建议） |
 | `decision.*` | `not_supported`（普通 chat 权重）/ `invalid_question` | 不可重试 |
-| `duplex.*` | `text_unsupported` 等能力缺失 | 不可重试 |
+| `full_duplex.*` | `text_unsupported` 等能力缺失 | 不可重试 |
 
 每条带 `code` / `message` / `retryable` / 可选 `detail`。
 
@@ -218,14 +219,14 @@ chat   chat.start / chat.delta{seq, kind} / chat.end{finish_reason, usage}
 
 | 内核事件 | 来源（vLLM-Omni） |
 |---|---|
-| `duplex.opened{capabilities}` | `session.created` |
-| `duplex.speech_started` / `stopped` | `input_audio_buffer.speech_started` / `stopped` |
-| `duplex.speak_start{response_id, item_id}` | `response.speak` |
-| `duplex.audio{seq, pcm, ms}` | `response.output_audio.delta` |
-| `duplex.text_delta{seq}` | `response.output_text.delta` |
-| `duplex.listen` | `response.listen` |
-| `duplex.ended{reason}` | `response.done` |
-| `duplex.played_ms{response_id, ms}` | 我们 → `playback.ack` |
+| `full_duplex.opened{capabilities}` | `session.created` |
+| `full_duplex.speech_started` / `stopped` | `input_audio_buffer.speech_started` / `stopped` |
+| `full_duplex.speak_start{response_id, item_id}` | `response.speak` |
+| `full_duplex.audio{seq, pcm, ms}` | `response.output_audio.delta` |
+| `full_duplex.text_delta{seq}` | `response.output_text.delta` |
+| `full_duplex.listen` | `response.listen` |
+| `full_duplex.ended{reason}` | `response.done` |
+| `full_duplex.played_ms{response_id, ms}` | 我们 → `playback.ack` |
 
 `reason` 取值：`barge_in` / `client_cancelled` / `new_response` / `eos`。
 
@@ -257,7 +258,7 @@ chat   chat.start / chat.delta{seq, kind} / chat.end{finish_reason, usage}
 | 能力 | 处理 |
 |---|---|
 | `supports_barge_in=false` | 禁用打断交互并在 UI 明示 |
-| `supports_audio_truncate=false` | 只停播 + cancel，记 `duplex.truncate_unsupported` |
+| `supports_audio_truncate=false` | 只停播 + cancel，记 `full_duplex.truncate_unsupported` |
 | `tools=false` | 配了工具就启动告警并禁用 |
 | `input_modes` 不含 text | 文本输入走 chat 模型 |
 | `chunk_period_ms` | 直接作为 UI「反应延迟」预期（MiniCPM-o = 1000 ms） |
@@ -268,7 +269,7 @@ chat   chat.start / chat.delta{seq, kind} / chat.end{finish_reason, usage}
 
 - 用户语音不存原文件，只存转写（`conversation.item.input_audio_transcription`）。
 - Aris 侧只存**实际播出**的文本：用 `response.output_audio_transcript.delta` 与 `played_ms` 对齐，
-  未播的尾巴丢弃；消息记 `truncated=true` / `played_ms`，`source` 区分 `text` / `duplex`。
+  未播的尾巴丢弃；消息记 `truncated=true` / `played_ms`，`source` 区分 `text` / `full_duplex`。
 - 音频输出不存；v1 不做回放。
 
 ### 打断
@@ -288,7 +289,7 @@ chat   chat.start / chat.delta{seq, kind} / chat.end{finish_reason, usage}
 
 - 全局默认模型 + 角色可设置自己的模型（实时切换）；未设置的角色用全局默认。
 - 不做「模型绑定角色」：同一本地模型被多角色指向时按多 session 共享，能力不够就 `model_busy`。
-- 决策模型不参与这套选择，由 `decision.toml` 的 `provider_id` 选（§4.12）。
+- 决策模型不参与这套选择，由 `decision.toml` 的 `model` 选（§4.12）。
 
 ### 状态机
 
@@ -324,7 +325,7 @@ available → installing → installed → loading → ready ⇄ busy → unload
 | embedding | 0（常驻） |
 
 - 手动卸载任意状态可用；使用中弹二次确认并说明会中断当前回复。
-- 按 `auto_load` 预热；**embedding 必预热**；决策模型被 `decision.provider_id` 绑定时按显式加载处理，
+- 按 `auto_load` 预热；**embedding 必预热**；决策模型被 `decision.model` 绑定时按显式加载处理，
   不自动卸，未绑定则按需（10 min）。
 
 ## 8. embedding
@@ -415,7 +416,7 @@ T10 只做能力与托管链路，**不预置模型、不写推荐**；门控与
    「决策模型 v1 只支持 GGUF，HF 原生模型暂不支持」
 8. 动作：保存 / 下载 / 加载 / 卸载 / 删除 / 打开上游仓库
 9. embedding 类型额外一个动作：**设为默认**（知识库与记忆使用）
-10. 决策模型保存后投影成 provider 条目，出现在 `decision.toml` 的 `provider_id` 选择器里
+10. 决策模型保存后投影成 provider 条目，出现在 `decision.toml` 的 `model` 选择器里
 
 ### 设置弹窗
 

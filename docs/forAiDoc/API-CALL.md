@@ -625,8 +625,8 @@ DeepSeek 提供 `base_url=https://api.deepseek.com/anthropic` 的 Anthropic 兼�
 | DeepSeek `/models` | ✓ | `input_modalities`(text\|image) / `output_modalities`(text) / `context_window` / `max_output_tokens` / `effort` |
 | models.dev（`api.json`） | ✓ | `modalities.input` / `modalities.output`（text/image/audio/video/pdf）+ `attachment` 布尔 |
 
-→ **能力表自建**，不依赖 `/v1/models`；`aris llm fetch` 的 enrichment 继续用 models.dev，
-DeepSeek 一侧可优先读它自己的 `/models`（信息更准）。
+→ **能力表自建**，不依赖 `/v1/models`：优先读提供商自己的 `/models` 返回的模态 / 上下文元信息，
+缺失就标「未知」并允许手填；**不使用 models.dev**。
 
 ### 4.6 Files API（图片复用，2026-09-28 新增）
 
@@ -787,7 +787,8 @@ resp2 = client.messages.create(model=..., messages=messages, tools=tools)
 5. **多模态：内部统一「内容块」表示**，翻译时按路径分派
    （chat → `image_url` / `file`；responses → `input_image`），
    并在构造期校验「图片只能在 user 消息」
-6. **`providers.toml` 增 `api_style` / `path` 字段**：base_url 与协议路径分开配置，
-   **禁止硬编码 `/v1`**（DeepSeek 无 `/v1`，通义是 `/compatible-mode/v1`）
+6. **`providers.toml` 用 provider 层 `api_format` 区分协议**：`base_url` 由用户填完整前缀
+   （含 `/v1` 或各家兼容路径），**代码不硬编码版本段**（DeepSeek 无 `/v1`，通义是
+   `/compatible-mode/v1`）；不设单独的 `path` 字段。
 7. **待用户确认后补**：#1 第三条能力面（其余厂商 API / 结构化输出等）
    与「LLM 流程 + 提供商管理的优化项、与 AstrBot 的差异」——调研中，未定案

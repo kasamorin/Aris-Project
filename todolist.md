@@ -38,7 +38,7 @@
 - [] 多模态、全模态模型支持（v1.x 的「多模态全双工」见本文件第 30 条）
 - [] 本地模型支持与本地模型页（v1.0 做 chat + embedding + decision；决策模型托管但暂不推荐模型，本地双工延后 v1.x；施工见 `docs/process/v1/S5-local-inference.md`，契约见 `docs/process/v1.0.0-prep.md` §4.29；**界面由开发者设计**）
 - [] embedding 推荐默认切换为 `granite-embedding-97m-multilingual-r2`（384 维；Bekko a25m 不再推荐；311M@384 质量档；**旧库直接删除、不做迁移**——目前只有测试数据；需实测 CPU 延迟 / ONNX vs OpenVINO / 重索引；契约见 §4.6 / §4.29）
-- [] 双工协议适配层（v1.0 只做 **GPT-Live-1** 云端原生双工，mock / 契约测试；OpenAI Realtime / 本地 vLLM-Omni / Gemini Live 留 v1.x；契约见 `docs/process/v1.0.0-prep.md` §4.28）
+- [] 双工协议适配层（v1.0 只做 **`openai_live`** 协议族 / GPT-Live 云端原生双工，模型由用户维护、代码不硬编码版本，mock / 契约测试；OpenAI Realtime / 本地 vLLM-Omni / Gemini Live 留 v1.x；契约见 `docs/process/v1.0.0-prep.md` §4.28）
 - [] 决策模型支持（自主回复 / 自主操作门控；远端 + **Aris 托管本地决策模型**，标准 `/v1/systemone`；不做主模型兜底，密集消息攒批；**暂不推荐具体模型（未实测）**；契约见 `docs/process/v1.0.0-prep.md` §4.12，本地落点见 `docs/process/v1/S5-local-inference.md` T10）
 - [] v1.x：借鉴 SurfCore（Mieksido/surfcore，v1.0 之后到 v2 之前，不进 v1.0 核心决策）
 - [] v1.x：主管理员账户（人格化管理员提示注入）
@@ -270,7 +270,8 @@
     纯音频双工模型（市面上多数双工模型是多模态甚至只有音频）。
     三条路线长期并存，不是替代：①独立 STT → LLM → TTS（半双工，纯文本模型的唯一路径）；
     ②**手动模拟全双工**（取消当前请求 + 带新输入重发）；③**原生全双工**（模型侧同时收发）。
-    **已定（2026-11-18）**：v1 只接 **GPT-Live-1** 云端原生双工（client delegation，Aris 跑
+    **已定（2026-11-18，2026-11-20 去模型硬编码）**：v1 只接 **`openai_live`** 协议族（GPT-Live，
+    模型由用户维护）云端原生双工（client delegation，Aris 跑
     agent / 记忆 / 工具）；文本仍走半双工 chat；打断、播放确认与落库口径见
     `docs/process/v1.0.0-prep.md` §4.28；只做 mock / 契约测试，发布标「未真机验证」。
 31. **v1.x：修复阈值总结导致的对话不连贯**：上下文到阈值时 compact 把旧历史换成摘要，语感会断；
@@ -315,8 +316,10 @@
 37. **消除歧义 & 消除自相矛盾**：全仓文档交叉检查（AGENTS / `docs/forAiDoc/` / `docs/process/` /
     `PROGRESS.md` / `todolist.md`）：同一事实只留一处，过期结论删掉或改成指针；
     冲突按 AGENTS 的权威顺序裁决。**发现冲突先记录，不擅自删不认识的改动。**
-38. **LLM 连接架构重整商讨**：provider / model / 统一连接页 / fallback 链 / 决策模型之间的关系再梳理一遍，
-    先出架构方案与迁移步骤，拍板后再动 S7 相关代码。
+38. **[x] LLM 连接架构重整商讨（2026-11-20 已定）**：provider / model / 统一连接页 / fallback 链 / 决策模型之间的关系已收口——
+    provider = connection（单层）、`api_format` 在 provider 层、引用统一 `provider/model`、id 创建后不可改、
+    fallback 只保留顶层一条链；契约见 `docs/process/v1.0.0-prep.md` §4.2 / §3.9，
+    施工见 `docs/process/v1/S7-llm-connection.md`。
 39. **[p] 消息平台首个实现改为 Matrix**：v1 只做 Matrix，平台抽象层保留；**OneBot v1 不做**（NapCat 停更、
     SnowLuma 转私有，协议端生态不稳定），将来若做目标是 OneBot v11（v12 仍在开发）。
     已定：密码 + token 登录（不做 OAuth2 / refresh token）、密码与 token 都存 `secrets.toml`（token 失效自动重登、
@@ -388,7 +391,7 @@
 47. **多角色同时运行（基本保留，只补全双工适配）**：2026-11-08 定案基本不动
     （独立会话 + 串行队列、音频不 ducking、互相注入、每角色绑模型），见
     `docs/process/v1.0.0-prep.md` §4.8。**WebChat 群聊暂不做、暂不设计（2026-11-17 定）**；
-    消息平台群聊本来就不在本次范围。全双工适配 v1 只做 **GPT-Live-1**，契约见
+    消息平台群聊本来就不在本次范围。全双工适配 v1 只做 **`openai_live`**（GPT-Live，模型不硬编码），契约见
     `docs/process/v1.0.0-prep.md` §4.28；**本地双工整体延后 v1.x**，本地模型（chat / embedding / decision）
     见 §4.29 / `docs/process/v1/S5-local-inference.md`。
     **不为每个角色单独微调模型**：人格靠 prompt.md + per-session instructions，音色靠 voice / ref_audio。
