@@ -11,12 +11,12 @@ from dataclasses import dataclass
 
 # 指令名 -> 说明（按展示顺序）
 COMMANDS: dict[str, str] = {
-    "/help": "查看可用指令",
-    "/clear": "清空屏幕",
-    "/new": "开启新会话（清空对话历史）",
-    "/model": "查看或切换模型（/model <id>）",
-    "/quit": "退出对话（同 /exit）",
-    "/exit": "退出对话（同 /quit）",
+    "/#help": "查看可用指令",
+    "/#clear": "清空屏幕",
+    "/#new-s": "开启新会话（新 `session_id`，清空对话历史）",
+    "/#model": "查看或切换模型（`/#model <id>`）",
+    "/#quit": "退出对话（同 `/#exit`）",
+    "/#exit": "退出对话（同 `/#quit`）",
 }
 
 # 提示符（与 TUI / 回退模式一致）
@@ -41,13 +41,12 @@ class ParsedCommand:
 def parse_command(text: str) -> ParsedCommand | None:
     """解析对话指令；输入不是指令时返回 None。
 
-    /quit /exit 也返回 ParsedCommand（name="quit"/"exit"），是否退出
-    由调用方按 name 判断。
+    TUI 与平台统一用 `/#` 前缀：`/#help`、`/#new-s` 等。解析时剥掉 `/#`。
     """
     stripped = text.strip()
-    if not stripped.startswith("/"):
+    if not stripped.startswith("/#"):
         return None
     parts = stripped.split(maxsplit=1)
-    name = parts[0][1:].lower()
+    name = parts[0][2:].lower()
     arg = parts[1].strip() if len(parts) > 1 else ""
     return ParsedCommand(name=name, arg=arg)

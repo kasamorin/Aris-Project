@@ -99,7 +99,7 @@
   长任务沿用 `webui/tasks`（内存、不持久化、备份用不确定进度）、轮次 PG 写失败「重试一次后作废本轮」、
   写库只在 chat 队列 + 记忆侧按 cid 加锁、SSE 断线插分隔不补历史。契约见 §4.27 ⑧–⑫。
 - **四件插议（2026-11-16）**：① 记忆对外名 APEMS → **AMS**（`Aris Memorate System`，代码仍叫 `memory`）；
-  ② `/#` 命令集加 `/#model`、去掉 `/#provider`（每行显示 `提供商/模型id`），TUI `/new` 服从平台语义
+  ② `/#` 命令集加 `/#model`、去掉 `/#provider`（每行显示 `提供商/模型id`）；TUI `/#new-s` 服从平台语义
   （触发 compact，不设 `/compact`）；③ 报错文案三态（`off` / `raw` / `custom`，默认 `custom` + `help`）；
   ④ TruE 命名放弃。契约见 §4.4、§4.7、§4.27 ⑬。
 - **双工会话进 v1.0（2026-11-16 范围变更）**：双工是**独立品类**（连续输入 + overlap 决策 + backchannel），

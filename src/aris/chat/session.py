@@ -177,8 +177,8 @@ class ChatSession:
         log_dir.mkdir(parents=True, exist_ok=True)
         self._log_dir = log_dir
 
-    def new(self) -> str:
-        """清空对话历史，开启新会话（保留系统提示词），返回反馈文本。"""
+    def new_session(self) -> str:
+        """开启新会话（新 `session_id`，清空内存上下文，保留系统提示词），返回反馈文本。"""
         self.history = [Message(role=MessageRole.SYSTEM, content=self._system_prompt)]
         return "已开启新会话，对话历史已清空。"
 
@@ -205,8 +205,8 @@ class ChatSession:
             return CommandResult(text="", quit=True)
         if parsed.name == "help":
             return CommandResult(text=COMMAND_HELP)
-        if parsed.name == "new":
-            return CommandResult(text=self.new())
+        if parsed.name in {"new-s", "#new-s"}:
+            return CommandResult(text=self.new_session())
         if parsed.name == "clear":
             return CommandResult(text="", clear=True)
         if parsed.name == "model":
@@ -217,7 +217,7 @@ class ChatSession:
                 for mid in self.available_models
             )
             return CommandResult(text=f"当前模型：{self.model_id}\n可用模型：\n{models}")
-        return CommandResult(text=f"未知指令 /{parsed.name}，输入 /help 查看可用指令")
+        return CommandResult(text=f"未知指令 /#{parsed.name}，输入 /#help 查看可用指令")
 
     def ask(
         self,

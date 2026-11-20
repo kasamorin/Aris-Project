@@ -406,6 +406,11 @@ character_notes (
 
 ## 8. compact 与维护调用
 
+> **术语口径（2026-11-20 澄清）**：`compact` 指**压缩操作**——把真实历史收成一条
+> `kind=compact` 的摘要（组装上下文 = 最后一条 compact 行 + `seq > covers_upto_seq` 的消息，见 §8）。
+> context 到达阈值时自动触发的动作就是「compact」；要分辨是触发还是操作时，说
+> 「阈值 compact」或「手动 compact（`/#new`）」。compact 之外没有别的「压缩触发」口径。
+
 - **触发**：阈值与预留算法按 compact 契约（两档触发 + 输出预留，具体数值在 `compact.toml`）；本节守语义：**实际阈值 = 配置阈值 − 预留输出空间**，且不得等于上下文上限。
 - **上下文大小三手**：provider `usage` 实测（流式开 `include_usage`）→ 调用前 tokenizer/字符预估 + 预留输出 → 被拒超长按 85/70/50/35% 逐级缩。
 - **输入只有真实历史**：system prompt 与注入的记忆块都不参与压缩。
