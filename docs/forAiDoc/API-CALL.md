@@ -138,7 +138,7 @@ while True:
     messages.append(assistant_msg)   # 关键：把上轮 assistant 消息放回历史
 ```
 
-**DeepSeek 思考模式注意**：无工具调用时，`reasoning_content` 无需回传（会被忽略）；**一旦请求带了 `tools`，所有后续请求必须完整回传 `reasoning_content`**，否则返回 400。直接用 `messages.append(assistant_msg)` 即可满足（assistant 消息对象自带全部字段）。
+**DeepSeek 思考模式注意**：响应中出现 `reasoning_content` 即原样回传；未出现则不补字段、不填空。**不按是否有 tools 判断**——普通 Chat 接口可能是 DeepSeek 套壳，只按实际响应决定。官方文档要求带 tools 时完整回传，但未说明非工具轮次可省；为兼容套壳网关恢复上游签名，建议有则回传，无则不伪造。
 
 ### 2.4 工具调用
 
@@ -335,14 +335,14 @@ for chunk in stream:
 
 | 状态码 | 含义 | 常见原因 |
 |---|---|---|
-| 400 | 请求无效 | 参数格式错、模型名错、超上下文、DeepSeek 带 tools 未回传 reasoning_content |
+| 400 | 请求无效 | 参数格式错、模型名错、超上下文、DeepSeek 思考模式缺 reasoning_content 回传 |
 | 401 | 未授权 | API key 错误或缺失 |
 | 403 | 禁止访问 | 额度用完、地区限制 |
 | 404 | 不存在 | 端点或模型名拼错 |
 | 429 | 请求过多 | 触达并发/速率限制（DeepSeek 响应头带重试时间） |
 | 500/502/503 | 服务端问题 | 提供方故障，重试即可 |
 
-**DeepSeek 特有**：错误码文档见官网「错误码」页；带 `tools` 请求若缺少 `reasoning_content` 回传，返回 400。
+**DeepSeek 特有**：错误码文档见官网「错误码」页；思考模式下缺 `reasoning_content` 回传返回 400；不以是否带 tools 为条件。
 
 ### 2.9 完整可运行示例
 
@@ -460,7 +460,7 @@ for _ in range(10):  # 防死循环上限
     break
 ```
 
-**照抄要点**：`api_key` 用你的 DeepSeek key，`base_url` 固定 `https://api.deepseek.com`；工具循环里 `messages.append(msg)` 这行不能省（DeepSeek 带 tools 时缺 reasoning_content 会 400）。
+**照抄要点**：`api_key` 用你的 DeepSeek key，`base_url` 固定 `https://api.deepseek.com`；工具循环里 `messages.append(msg)` 这行不能省（DeepSeek 思考模式下缺 reasoning_content 会 400，不以是否带 tools 为条件）。
 
 ---
 
@@ -560,7 +560,7 @@ POST https://api.openai.com/v1/responses     # OpenAI 有 /v1
   responses 是 `output[]` 里的 `reasoning` item（内容为 `reasoning_text` 块），
   流式事件 `response.reasoning_text.delta`
 - responses 的 `reasoning.summary` **可传但不生成摘要**；`encrypted_content` 不支持
-- **多轮回传规则**见 2.3 节：带 tools 时必须回传 reasoning_content（chat 路径）
+- **多轮回传规则**见 2.3 节：实际保存过 reasoning_content 即回传；未出现则不补字段、不填空
 - **Aris 约定**：思考模式**默认关闭**，开关放配置文件；打开时才用 `effort`
 
 ### 4.2 Anthropic API 兼容（**2026-11-13 改为 v1.0 适配**）

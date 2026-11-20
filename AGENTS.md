@@ -456,7 +456,7 @@ Aris 是一个**基于大语言模型、类似 Neuro-sama 的赛博生命**。�
 
 ### 外部服务
 
-- DeepSeek 带 tools 必须回传 `reasoning_content`，否则 400。
+- DeepSeek 思考模式下必须回传 `reasoning_content`（不以是否带 tools 为条件），否则 400。
 - Bing 直连三件套缺一不可：Firefox UA + 先访问首页取 cookie + 查询 URL 带 `form=QBRE`；
   真实链接要解 `/ck/a` 的 `u=` base64。
 
